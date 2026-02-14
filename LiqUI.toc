@@ -5,9 +5,19 @@
 ## Author: Liquidor (EU Silvermoon)
 ## X-Website: https://github.com/DennisRas/LiqUI
 ## Category: Library
+## SavedVariables: LiqUIDB
 
 LiqUI.lua
 Utils.lua
 Types.lua
-Mixins.lua
+Config.lua
 Layout/Window.lua
+Widgets/Base.lua
+Widgets/EditBox.lua
+Widgets/CheckBox.lua
+Widgets/Button.lua
+Widgets/Dropdown.lua
+Widgets/MultiSelect.lua
+Widgets/ColorPicker.lua
+Layout/FormRow.lua
+Settings.lua

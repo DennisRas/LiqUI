@@ -3,6 +3,15 @@
 	<Script file="LiqUI.lua" />
 	<Script file="Utils.lua" />
 	<Script file="Types.lua" />
-	<Script file="Mixins.lua" />
+	<Script file="Config.lua" />
 	<Script file="Layout/Window.lua" />
+	<Script file="Widgets/Base.lua" />
+	<Script file="Widgets/EditBox.lua" />
+	<Script file="Widgets/CheckBox.lua" />
+	<Script file="Widgets/Button.lua" />
+	<Script file="Widgets/Dropdown.lua" />
+	<Script file="Widgets/MultiSelect.lua" />
+	<Script file="Widgets/ColorPicker.lua" />
+	<Script file="Layout/FormRow.lua" />
+	<Script file="Settings.lua" />
 </Ui>

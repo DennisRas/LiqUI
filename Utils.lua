@@ -1,5 +1,23 @@
 local Utils = LiqUI.Utils
 
+---Merge defaults with options; ensure parent (default UIParent).
+function Utils.PrepareOptions(defaults, options)
+  local opts = Utils.MergeDeep(defaults or { parent = UIParent }, options or {})
+  opts.parent = opts.parent or UIParent
+  return opts
+end
+
+---Create a font string with theme text color. anchor: { point, relativeTo, relativePoint, x, y }.
+function Utils.CreateLabel(parent, text, anchor)
+  local fs = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  if anchor then
+    fs:SetPoint(anchor.point or "LEFT", anchor.relativeTo or parent, anchor.relativePoint or "LEFT", anchor.x or 0, anchor.y or 0)
+  end
+  fs:SetText(text or "")
+  fs:SetTextColor(LiqUI.Config.text.defaultColor:GetRGBA())
+  return fs
+end
+
 ---Find a table item by callback
 ---@generic T
 ---@param tbl table<any, T>
@@ -117,4 +135,61 @@ function Utils.TableForEach(tbl, callback)
     callback(iv, ik)
   end
   return tbl
+end
+
+---Iterate table keys sorted by optional order field (AceConfig-style). Yields key.
+---@param tbl table
+---@return fun(): string?, any
+function Utils.SortedPairs(tbl)
+  local keys = {}
+  for k in pairs(tbl) do
+    keys[#keys + 1] = k
+  end
+  local orderVal = function(k)
+    local v = tbl[k]
+    if type(v) == "table" and type(v.order) == "number" then
+      return v.order
+    end
+    return 100
+  end
+  table.sort(keys, function(a, b) return orderVal(a) < orderVal(b) end)
+  local i = 0
+  return function()
+    i = i + 1
+    return keys[i]
+  end
+end
+
+---Highlight mixin: overlay for hover/selection. Use Mixin(frame, LiqUI.Mixins.Highlight).
+---@class LiqUI_HighlightMixin
+LiqUI.Mixins = LiqUI.Mixins or {}
+LiqUI.Mixins.Highlight = {}
+local Highlight = LiqUI.Mixins.Highlight
+
+function Highlight:SetVertexColor(r, g, b, a)
+  if not self.Highlight then
+    self.Highlight = self:CreateTexture("Highlight", "OVERLAY")
+    self.Highlight:SetTexture("Interface/BUTTONS/WHITE8X8")
+    self.Highlight:SetAllPoints()
+    self.Highlight:Hide()
+  end
+  r = r or 1
+  g = g or 1
+  b = b or 1
+  a = a or 0.05
+  self.Highlight:SetVertexColor(r, g, b, a)
+end
+
+function Highlight:Show(r, g, b, a)
+  if not self.Highlight then
+    self:SetVertexColor(r, g, b, a)
+  end
+  self.Highlight:Show()
+end
+
+function Highlight:Hide()
+  if not self.Highlight then
+    return
+  end
+  self.Highlight:Hide()
 end
