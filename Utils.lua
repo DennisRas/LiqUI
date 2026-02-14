@@ -1,42 +1,5 @@
 local Utils = LiqUI.Utils
 
----Set the background color for a frame
----@param parent table
----@param r number
----@param g number
----@param b number
----@param a number
-function Utils.SetBackgroundColor(parent, r, g, b, a)
-  if not parent.Background then
-    parent.Background = parent:CreateTexture("Background", "BACKGROUND")
-    parent.Background:SetTexture("Interface/BUTTONS/WHITE8X8")
-    parent.Background:SetAllPoints()
-  end
-  parent.Background:SetVertexColor(r, g, b, a)
-end
-
----Set the highlight color for a frame
----@param parent table
----@param r number|table?
----@param g number?
----@param b number?
----@param a number?
-function Utils.SetHighlightColor(parent, r, g, b, a)
-  if not parent.Highlight then
-    parent.Highlight = parent:CreateTexture("Highlight", "OVERLAY")
-    parent.Highlight:SetTexture("Interface/BUTTONS/WHITE8X8")
-    parent.Highlight:SetAllPoints()
-  end
-  if type(r) == "table" then
-    r, g, b, a = r.r, r.g, r.b, r.a
-  end
-  r = r or 1
-  g = g or 1
-  b = b or 1
-  a = a or 0.05
-  parent.Highlight:SetVertexColor(r, g, b, a)
-end
-
 ---Find a table item by callback
 ---@generic T
 ---@param tbl table<any, T>
@@ -90,6 +53,22 @@ function Utils.TableCount(tbl)
     n = n + 1
   end
   return n
+end
+
+---Deep merge overlay into base. Nested tables are merged recursively; overlay values override base. Returns new table.
+---@param base table
+---@param overlay table
+---@return table
+function Utils.MergeDeep(base, overlay)
+  local result = Utils.TableCopy(base)
+  for k, v in pairs(overlay) do
+    if type(v) == "table" and type(result[k]) == "table" then
+      result[k] = Utils.MergeDeep(result[k], v)
+    else
+      result[k] = v
+    end
+  end
+  return result
 end
 
 ---Deep copy a table
