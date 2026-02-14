@@ -1,0 +1,10 @@
+## Interface: 120000, 120001
+## Title: LiqUI
+## Notes: Shared UI library for Liq addons
+## Version: 0.1.0
+## Author: Liquidor (EU Silvermoon)
+## X-Website: https://github.com/DennisRas/LiqUI
+## Category: Library
+
+Core.lua
+Utils.lua
