@@ -1,4 +1,3 @@
----@class LiqUI
 LiqUI = LiqUI or {}
 
 LiqUI.Utils = LiqUI.Utils or {}

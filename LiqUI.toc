@@ -6,5 +6,8 @@
 ## X-Website: https://github.com/DennisRas/LiqUI
 ## Category: Library
 
-Core.lua
+LiqUI.lua
 Utils.lua
+Types.lua
+Mixins.lua
+Layout/Window.lua
