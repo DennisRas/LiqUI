@@ -21,3 +21,7 @@ Widgets/MultiSelect.lua
 Widgets/ColorPicker.lua
 Layout/FormRow.lua
 Settings.lua
+
+#@debug@
+Dev\TestSettings.lua
+#@end-debug@
