@@ -1,10 +1,12 @@
 local C = LiqUI.Config
 
 local EditBoxDefaults = {
-  width = 100,
+  width = C.control.editBoxWidth,
   height = C.control.height,
   label = "",
   value = "",
+  inputType = "text",
+  disabled = false,
   editBoxTextPaddingH = C.control.editBoxTextPaddingH,
   textColor = C.text.defaultColor,
   backdropInsetLeft = (C.control.backdrop.insets and C.control.backdrop.insets.left) or 1,
@@ -71,5 +73,9 @@ function LiqUI.Widgets.CreateEditBox(parent, options)
     editBox:SetText(tostring(val or ""))
   end
 
+  if frame.options.disabled then
+    editBox:Disable()
+    frame:SetAlpha(0.5)
+  end
   return frame
 end

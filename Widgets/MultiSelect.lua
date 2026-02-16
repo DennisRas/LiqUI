@@ -2,13 +2,14 @@
 local C = LiqUI.Config
 
 local MultiSelectDefaults = {
-  width = 180,
+  width = C.control.dropdownWidth,
   height = C.control.dropdownItemHeight,
   padding = C.control.padding,
   dropdownItemHeight = C.control.dropdownItemHeight,
   dropdownListMaxHeight = C.control.dropdownListMaxHeight,
   checkSizeSmall = C.control.checkSizeSmall,
   textColor = C.text.defaultColor,
+  disabled = false,
   values = {},
   get = nil,
   set = nil,
@@ -136,5 +137,9 @@ function LiqUI.Widgets.CreateMultiSelect(parent, options)
   end
 
   updateSummary()
+  if opts.disabled then
+    triggerBtn:Disable()
+    frame:SetAlpha(0.5)
+  end
   return frame
 end

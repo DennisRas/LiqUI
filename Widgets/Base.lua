@@ -18,9 +18,14 @@ LiqUI.Widgets.BaseMixin = {}
 
 function LiqUI.Widgets.BaseMixin:SetBorderState(state)
   local opts = self.options or {}
-  local color = (state == "highlight" and opts.borderColorHighlight or BaseControlDefaults.borderColorHighlight)
-      or (state == "focus" and opts.borderColorFocus or BaseControlDefaults.borderColorFocus)
-      or opts.borderColor or BaseControlDefaults.borderColor
+  local color
+  if state == "highlight" then
+    color = opts.borderColorHighlight or BaseControlDefaults.borderColorHighlight
+  elseif state == "focus" then
+    color = opts.borderColorFocus or BaseControlDefaults.borderColorFocus
+  else
+    color = opts.borderColor or BaseControlDefaults.borderColor
+  end
   self:SetBackdropBorderColor(color:GetRGBA())
 end
 
@@ -35,9 +40,14 @@ end
 
 function LiqUI.Widgets.BaseMixin:SetBackgroundState(state)
   local opts = self.options or {}
-  local color = (state == "highlight" and opts.backgroundColorHover or BaseControlDefaults.backgroundColorHover)
-      or (state == "pressed" and opts.backgroundColorPressed or BaseControlDefaults.backgroundColorPressed)
-      or opts.backgroundColor or BaseControlDefaults.backgroundColor
+  local color
+  if state == "highlight" then
+    color = opts.backgroundColorHover or BaseControlDefaults.backgroundColorHover
+  elseif state == "pressed" then
+    color = opts.backgroundColorPressed or BaseControlDefaults.backgroundColorPressed
+  else
+    color = opts.backgroundColor or BaseControlDefaults.backgroundColor
+  end
   applyBackdropColor(self, color)
 end
 

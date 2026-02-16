@@ -105,16 +105,6 @@ local function BuildForm(parent, options, handler)
   parent.formRows = {}
   local args = opts.args or {}
   local y = -fm.padding
-  local contentWidth = math.max(200, (parent:GetWidth() or 400) - 40)
-
-  -- Decide which control gets the line under it: if both header and description exist, under description; else under first of either
-  local firstHeaderKey, firstDescKey
-  for key in LiqUI.Utils.SortedPairs(args) do
-    local t = args[key] and (args[key].type or "input")
-    if t == "header" and not firstHeaderKey then firstHeaderKey = key end
-    if t == "description" and not firstDescKey then firstDescKey = key end
-  end
-  local lineUnderKey = (firstHeaderKey and firstDescKey) and firstDescKey or firstHeaderKey or firstDescKey
 
   for key in LiqUI.Utils.SortedPairs(args) do
     local opt = args[key]
@@ -122,13 +112,15 @@ local function BuildForm(parent, options, handler)
       local optType = opt.type or "input"
       local name = (type(opt.name) == "string") and opt.name or key
       local desc = (type(opt.desc) == "string") and opt.desc or nil
+      local isDisabled = (type(opt.disabled) == "function" and opt.disabled({ arg = opt.arg })) or opt.disabled
       local control
 
       if optType == "input" then
         local val = GetOptionValue(opt, { key }, opts.handler or handler)
         local widget = LiqUI.Widgets.CreateEditBox(parent, {
           value = tostring(val or ""),
-          width = fm.widgetWidthEdit,
+          inputType = opt.inputType or "text",
+          disabled = isDisabled,
           OnValueChanged = function(v)
             SetOptionValue(opt, { key }, opts.handler or handler, v)
           end,
@@ -138,7 +130,6 @@ local function BuildForm(parent, options, handler)
           label = name,
           description = desc,
           widget = widget,
-          widgetWidth = fm.widgetWidthEdit,
         })
         table.insert(parent.formRows,
           { widget = widget, getValue = function() return GetOptionValue(opt, { key }, opts.handler or handler) end })
@@ -146,6 +137,7 @@ local function BuildForm(parent, options, handler)
         local val = GetOptionValue(opt, { key }, opts.handler or handler)
         local widget = LiqUI.Widgets.CreateCheckBox(parent, {
           checked = val,
+          disabled = isDisabled,
           OnValueChanged = function(v)
             SetOptionValue(opt, { key }, opts.handler or handler, v)
           end,
@@ -155,7 +147,6 @@ local function BuildForm(parent, options, handler)
           label = name,
           description = desc,
           widget = widget,
-          widgetWidth = fm.widgetWidthCheck,
         })
         table.insert(parent.formRows,
           { widget = widget, getValue = function() return GetOptionValue(opt, { key }, opts.handler or handler) end })
@@ -164,7 +155,7 @@ local function BuildForm(parent, options, handler)
         if type(func) == "function" then
           local widget = LiqUI.Widgets.CreateButton(parent, {
             label = name,
-            width = fm.widgetWidthButton,
+            disabled = isDisabled,
             OnClick = function()
               func({ arg = opt.arg })
             end,
@@ -174,7 +165,6 @@ local function BuildForm(parent, options, handler)
             label = name,
             description = desc,
             widget = widget,
-            widgetWidth = fm.widgetWidthButton,
           })
         end
       elseif optType == "select" then
@@ -185,7 +175,7 @@ local function BuildForm(parent, options, handler)
           local widget = LiqUI.Widgets.CreateDropdown(parent, {
             values = values,
             value = val,
-            width = fm.widgetWidthDropdown,
+            disabled = isDisabled,
             OnValueChanged = function(v)
               SetOptionValue(opt, { key }, opts.handler or handler, v)
             end,
@@ -195,7 +185,6 @@ local function BuildForm(parent, options, handler)
             label = name,
             description = desc,
             widget = widget,
-            widgetWidth = fm.widgetWidthDropdown,
           })
           table.insert(parent.formRows,
             { widget = widget, getValue = function() return GetOptionValue(opt, { key }, opts.handler or handler) end })
@@ -206,7 +195,7 @@ local function BuildForm(parent, options, handler)
         if type(values) == "table" then
           local widget = LiqUI.Widgets.CreateMultiSelect(parent, {
             values = values,
-            width = fm.widgetWidthDropdown,
+            disabled = isDisabled,
             get = function(k)
               local info = { arg = opt.arg }
               if opt.get then
@@ -228,7 +217,6 @@ local function BuildForm(parent, options, handler)
             label = name,
             description = desc,
             widget = widget,
-            widgetWidth = fm.widgetWidthDropdown,
           })
         end
       elseif optType == "color" then
@@ -248,6 +236,7 @@ local function BuildForm(parent, options, handler)
           b = gb,
           a = ga,
           hasAlpha = hasAlpha,
+          disabled = isDisabled,
           OnValueChanged = function(nr, ng, nb, na)
             local info = { arg = opt.arg }
             if opt.set then
@@ -264,31 +253,19 @@ local function BuildForm(parent, options, handler)
           label = name,
           description = desc,
           widget = widget,
-          widgetWidth = fm.widgetWidthColor,
         })
         table.insert(parent.formRows, { widget = widget, getValue = getColor })
       elseif optType == "header" then
-        control = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        control:SetText(name)
-        control:SetWordWrap(true)
-        control:SetWidth(contentWidth - fm.padding * 2)
-        control:SetHeight(20)
-        control:SetTextColor(1, 1, 1)
-        control:SetJustifyH("LEFT")
-        control:SetFontObject("GameFontNormalLarge")
+        control = LiqUI.Widgets.CreateHeader(parent, { text = name })
       elseif optType == "description" then
-        control = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        control:SetText(name)
-        control:SetWordWrap(true)
-        control:SetWidth(contentWidth - fm.padding * 2)
-        control:SetHeight(20)
-        control:SetTextColor(1, 1, 1)
-        control:SetJustifyH("LEFT")
+        control = LiqUI.Widgets.CreateDescription(parent, { text = name })
+      elseif optType == "divider" then
+        control = LiqUI.Widgets.CreateDivider(parent, {})
       end
 
       if control then
-        control:SetPoint("TOPLEFT", parent, "TOPLEFT", fm.padding, y)
-        control:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -fm.padding, y)
+        control:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
+        control:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, y)
         local h = control:GetHeight() or 24
         local spacingAfter = fm.rowSpacingDefault
         if type(opt.spacingAfter) == "number" then
@@ -297,17 +274,10 @@ local function BuildForm(parent, options, handler)
           spacingAfter = fm.rowSpacingAfterHeader
         elseif optType == "description" then
           spacingAfter = fm.rowSpacingAfterDescription
+        elseif optType == "divider" then
+          spacingAfter = 0
         end
         y = y - h - spacingAfter
-        -- Line below header or description: under description if page has both, else under the first of either
-        if lineUnderKey and key == lineUnderKey and (optType == "header" or optType == "description") then
-          local line = parent:CreateTexture(nil, "OVERLAY")
-          line:SetColorTexture(C.form.headerLineColor:GetRGBA())
-          line:SetHeight(fm.headerLineHeight)
-          line:SetPoint("TOPLEFT", parent, "TOPLEFT", fm.padding, y)
-          line:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -fm.padding, y)
-          y = y - fm.headerLineHeight - fm.headerLineGap
-        end
       end
     end
   end
@@ -372,13 +342,7 @@ local function BuildTree()
   return addons
 end
 
-local function UpdateScrollBarVisibility(scrollFrame)
-  local range = scrollFrame:GetVerticalScrollRange()
-  local bar = scrollFrame.ScrollBar or (scrollFrame:GetName() and _G[scrollFrame:GetName() .. "ScrollBar"])
-  if bar then
-    if range and range > 0 then bar:Show() else bar:Hide() end
-  end
-end
+local SCROLL_BAR_WIDTH = 8
 
 ---Open the Settings window. Creates it if needed.
 function Settings:Open()
@@ -470,18 +434,10 @@ function Settings:Open()
     content:SetPoint("BOTTOMRIGHT", body, "BOTTOMRIGHT", 0, 0)
     content:SetFrameLevel(sidebar:GetFrameLevel() + 1)
 
-    local scrollFrame = CreateFrame("ScrollFrame", "$parentScroll", content, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", content, "TOPLEFT", fm.padding, 0)
-    scrollFrame:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -24, 0)
-    local scrollChild = CreateFrame("Frame", nil, scrollFrame)
-    scrollChild:SetSize(1, 1)
-    scrollFrame:SetScrollChild(scrollChild)
-    scrollFrame:SetScript("OnSizeChanged", function()
-      local w = scrollFrame:GetWidth()
-      if w and w > 0 then
-        scrollChild:SetWidth(w)
-      end
-    end)
+    local scrollFrame = LiqUI.Utils.CreateScrollFrame(content, "$parentScroll", { barWidth = 6 })
+    scrollFrame:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+    scrollFrame:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -SCROLL_BAR_WIDTH, 0)
+    local scrollChild = scrollFrame.scrollChild
 
     local function ShowPage(addonId, pageId)
       selectedAddonId = addonId
@@ -500,21 +456,24 @@ function Settings:Open()
       if cached then
         formFrame = cached
         formFrame:SetParent(scrollChild)
-        formFrame:SetPoint("TOPLEFT", scrollChild, "TOPLEFT")
-        formFrame:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT")
+        formFrame:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", fm.padding, 0)
+        formFrame:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", -fm.padding, 0)
         formFrame:Show()
         RefreshFormValues(formFrame)
       else
         local scrollW = math.max(1, scrollFrame:GetWidth() or 400)
         scrollChild:SetSize(scrollW, 1)
         formFrame = CreateFrame("Frame", nil, scrollChild)
-        formFrame:SetPoint("TOPLEFT", scrollChild, "TOPLEFT")
-        formFrame:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT")
+        formFrame:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", fm.padding, 0)
+        formFrame:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", -fm.padding, 0)
         BuildForm(formFrame, opts)
         formCache[addonId][pageId] = formFrame
       end
       scrollChild:SetHeight(formFrame:GetHeight())
-      UpdateScrollBarVisibility(scrollFrame)
+      scrollFrame:SetVerticalScroll(0)
+      C_Timer.After(0, function()
+        scrollFrame:UpdateScrollBar()
+      end)
     end
 
     local function RefreshSidebar()

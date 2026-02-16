@@ -1,25 +1,21 @@
 LiqUI.Layout = LiqUI.Layout or {}
 
 local C = LiqUI.Config
-local DEFAULTS = { parent = UIParent, label = "", description = "", widget = nil, widgetWidth = nil }
+local DEFAULTS = { parent = UIParent, label = "", description = "", widget = nil }
 
 local FormRow = {}
 LiqUI.Layout.FormRow = FormRow
 
----@param options { parent?: Frame, label?: string, description?: string, widget: Frame, widgetWidth?: number }
+---@param options { parent?: Frame, label?: string, description?: string, widget: Frame }
 ---@return Frame row
 function FormRow:New(options)
   local opts = LiqUI.Utils.PrepareOptions(DEFAULTS, options)
   local parent = opts.parent
   local widget = opts.widget
-  local widgetWidth = opts.widgetWidth
-  if not widgetWidth and widget and type(widget.GetWidth) == "function" then
-    widgetWidth = widget:GetWidth()
-  end
-  widgetWidth = widgetWidth or 200
   if not widget then
     return parent
   end
+  local widgetWidth = (type(widget.GetWidth) == "function" and widget:GetWidth()) or 200
   local labelText = opts.label or ""
   local descText = opts.description or ""
 
@@ -39,9 +35,6 @@ function FormRow:New(options)
   widget:ClearAllPoints()
   widget:SetPoint("TOPLEFT", row, "TOPRIGHT", -widgetWidth, 0)
   widget:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
-  if widgetWidth then
-    widget:SetWidth(widgetWidth)
-  end
 
   -- Label: left column; push down slightly so vertically aligned with control
   local labelFontString = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")

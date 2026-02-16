@@ -9,6 +9,9 @@
 	<Script file="Widgets/EditBox.lua" />
 	<Script file="Widgets/CheckBox.lua" />
 	<Script file="Widgets/Button.lua" />
+	<Script file="Widgets/Header.lua" />
+	<Script file="Widgets/Description.lua" />
+	<Script file="Widgets/Divider.lua" />
 	<Script file="Widgets/Dropdown.lua" />
 	<Script file="Widgets/MultiSelect.lua" />
 	<Script file="Widgets/ColorPicker.lua" />

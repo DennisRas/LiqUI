@@ -12,217 +12,308 @@ local function printMsg(...) print("|cff67AFD6LiqUI:|r", ...) end
 local options = {
   type = "group",
   args = {
-    appearance = {
+    headers = {
       type = "group",
-      name = "Appearance",
+      name = "Headers",
       order = 1,
       args = {
-        header = { type = "header", name = "Appearance", order = 0 },
-        desc = { type = "description", name = "Placeholder options for layout testing. Values are stored but not used.", order = 1 },
-        showMinimapIcon = {
+        header = { type = "header", name = "Header styles", order = 0 },
+        desc = { type = "description", name = "Test header and description layout.", order = 1 },
+        divider = { type = "divider", order = 2 },
+        headerOnly = { type = "header", name = "Header only (no description)", order = 10 },
+        toggle1 = {
           type = "toggle",
-          name = "Show minimap icon",
-          desc = "Display the addon icon on the minimap (dev placeholder).",
-          get = function() return devGet("showMinimapIcon") end,
-          set = function(_, v) devSet("showMinimapIcon", v) end,
-          order = 10,
+          name = "Toggle under header",
+          get = function() return devGet("h_toggle1") end,
+          set = function(_, v) devSet("h_toggle1", v) end,
+          order = 11,
         },
-        windowScale = {
-          type = "input",
-          name = "Window scale",
-          desc = "Scale factor for the main window (e.g. 100 for 100%%).",
-          get = function() return tostring(devGet("windowScale") or "100") end,
-          set = function(_, v) devSet("windowScale", v) end,
-          order = 20,
-        },
-        useCompactMode = {
+        descOnly = { type = "description", name = "Description only (no header above).", order = 20 },
+        toggle2 = {
           type = "toggle",
-          name = "Compact mode",
-          desc = "Use a more compact layout for the interface.",
-          get = function() return devGet("useCompactMode") end,
-          set = function(_, v) devSet("useCompactMode", v) end,
+          name = "Toggle under description",
+          get = function() return devGet("h_toggle2") end,
+          set = function(_, v) devSet("h_toggle2", v) end,
+          order = 21,
+        },
+        toggleDisabled = {
+          type = "toggle",
+          name = "Disabled toggle",
+          disabled = true,
+          get = function() return true end,
+          set = function() end,
           order = 30,
         },
-        theme = {
+      },
+    },
+    dropdowns = {
+      type = "group",
+      name = "Dropdowns",
+      order = 2,
+      args = {
+        header = { type = "header", name = "Dropdowns", order = 0 },
+        desc = { type = "description", name = "Select, multiselect, and texture dropdown (placeholder for LibSharedMedia).", order = 1 },
+        divider = { type = "divider", order = 2 },
+        select = {
           type = "select",
-          name = "Theme",
-          desc = "UI theme (dev placeholder).",
-          values = { light = "Light", dark = "Dark", system = "System" },
-          get = function() return devGet("theme") or "dark" end,
-          set = function(_, v) devSet("theme", v) end,
+          name = "Single choice",
+          values = { a = "Option A", b = "Option B", c = "Option C" },
+          get = function() return devGet("dd_select") or "a" end,
+          set = function(_, v) devSet("dd_select", v) end,
+          order = 10,
+        },
+        multiselect = {
+          type = "multiselect",
+          name = "Multi choice",
+          desc = "Pick multiple options.",
+          values = { x = "Extra", y = "Yes", z = "Zoom" },
+          get = function(_, k) return (devGet("dd_multi") or {})[k] end,
+          set = function(_, k, v)
+            LiqUIDB.dev = LiqUIDB.dev or {}
+            LiqUIDB.dev.dd_multi = LiqUIDB.dev.dd_multi or {}
+            LiqUIDB.dev.dd_multi[k] = v
+          end,
+          order = 20,
+        },
+        texture = {
+          type = "select",
+          name = "Texture",
+          desc = "Placeholder for LibSharedMedia texture dropdown.",
+          values = {
+            white8x8 = "White 8x8",
+            tooltip_border = "Tooltip Border",
+            solid = "Solid",
+          },
+          get = function() return devGet("dd_texture") or "white8x8" end,
+          set = function(_, v) devSet("dd_texture", v) end,
+          order = 30,
+        },
+        selectDisabled = {
+          type = "select",
+          name = "Disabled select",
+          disabled = true,
+          values = { a = "A", b = "B" },
+          get = function() return "a" end,
+          set = function() end,
           order = 40,
         },
-        accentColor = {
+        multiselectDisabled = {
+          type = "multiselect",
+          name = "Disabled multiselect",
+          disabled = true,
+          values = { x = "X", y = "Y" },
+          get = function() return false end,
+          set = function() end,
+          order = 50,
+        },
+        textureDisabled = {
+          type = "select",
+          name = "Disabled texture",
+          disabled = true,
+          values = { solid = "Solid" },
+          get = function() return "solid" end,
+          set = function() end,
+          order = 60,
+        },
+      },
+    },
+    toggles = {
+      type = "group",
+      name = "Toggles",
+      order = 3,
+      args = {
+        header = { type = "header", name = "Toggles", order = 0 },
+        desc = { type = "description", name = "Checkbox controls.", order = 1 },
+        divider = { type = "divider", order = 2 },
+        toggle1 = {
+          type = "toggle",
+          name = "Toggle option",
+          get = function() return devGet("tg_1") end,
+          set = function(_, v) devSet("tg_1", v) end,
+          order = 10,
+        },
+        toggle2 = {
+          type = "toggle",
+          name = "Toggle with description",
+          desc = "Additional text below the label.",
+          get = function() return devGet("tg_2") end,
+          set = function(_, v) devSet("tg_2", v) end,
+          order = 20,
+        },
+        toggleChecked = {
+          type = "toggle",
+          name = "Checked toggle",
+          get = function() return devGet("tg_checked") ~= false end,
+          set = function(_, v) devSet("tg_checked", v) end,
+          order = 30,
+        },
+        toggleDisabled = {
+          type = "toggle",
+          name = "Disabled toggle",
+          disabled = true,
+          get = function() return false end,
+          set = function() end,
+          order = 40,
+        },
+        toggleCheckedDisabled = {
+          type = "toggle",
+          name = "Checked disabled toggle",
+          disabled = true,
+          get = function() return true end,
+          set = function() end,
+          order = 50,
+        },
+      },
+    },
+    inputs = {
+      type = "group",
+      name = "Inputs",
+      order = 4,
+      args = {
+        header = { type = "header", name = "Inputs", order = 0 },
+        desc = { type = "description", name = "Edit box controls.", order = 1 },
+        divider = { type = "divider", order = 2 },
+        input1 = {
+          type = "input",
+          name = "Text input",
+          get = function() return tostring(devGet("in_1") or "") end,
+          set = function(_, v) devSet("in_1", v) end,
+          order = 10,
+        },
+        input2 = {
+          type = "input",
+          name = "Input with description",
+          desc = "Placeholder for numeric or text value.",
+          get = function() return tostring(devGet("in_2") or "") end,
+          set = function(_, v) devSet("in_2", v) end,
+          order = 20,
+        },
+        input3 = {
+          type = "input",
+          name = "Number input",
+          desc = "inputType = number. Widget will filter/parse when implemented.",
+          inputType = "number",
+          get = function() return tostring(devGet("in_num") or 0) end,
+          set = function(_, v)
+            local n = tonumber(v)
+            devSet("in_num", n or 0)
+          end,
+          order = 30,
+        },
+        inputDisabled = {
+          type = "input",
+          name = "Disabled input",
+          disabled = true,
+          get = function() return "Disabled" end,
+          set = function() end,
+          order = 40,
+        },
+        inputNumberDisabled = {
+          type = "input",
+          name = "Disabled number input",
+          disabled = true,
+          inputType = "number",
+          get = function() return "42" end,
+          set = function() end,
+          order = 50,
+        },
+      },
+    },
+    colors = {
+      type = "group",
+      name = "Colors",
+      order = 5,
+      args = {
+        header = { type = "header", name = "Colors", order = 0 },
+        desc = { type = "description", name = "Color picker with and without alpha.", order = 1 },
+        divider = { type = "divider", order = 2 },
+        colorNoAlpha = {
           type = "color",
-          name = "Accent color",
-          desc = "Primary accent color (dev placeholder).",
+          name = "Color (no alpha)",
           hasAlpha = false,
           get = function()
-            local c = LiqUIDB.dev and LiqUIDB.dev.accentColor
+            local c = LiqUIDB.dev and LiqUIDB.dev.col1
             if c then return c.r, c.g, c.b, 1 end
             return 0.3, 0.5, 0.8, 1
           end,
           set = function(_, r, g, b)
             LiqUIDB.dev = LiqUIDB.dev or {}
-            LiqUIDB.dev.accentColor = { r = r, g = g, b = b }
+            LiqUIDB.dev.col1 = { r = r, g = g, b = b }
           end,
-          order = 50,
+          order = 10,
+        },
+        colorWithAlpha = {
+          type = "color",
+          name = "Color (with alpha)",
+          hasAlpha = true,
+          get = function()
+            local c = LiqUIDB.dev and LiqUIDB.dev.col2
+            if c then return c.r, c.g, c.b, c.a or 1 end
+            return 0.5, 0.5, 0.5, 1
+          end,
+          set = function(_, r, g, b, a)
+            LiqUIDB.dev = LiqUIDB.dev or {}
+            LiqUIDB.dev.col2 = { r = r, g = g, b = b, a = a or 1 }
+          end,
+          order = 20,
+        },
+        colorDisabled = {
+          type = "color",
+          name = "Disabled color",
+          disabled = true,
+          hasAlpha = false,
+          get = function() return 0.5, 0.5, 0.5, 1 end,
+          set = function() end,
+          order = 30,
         },
       },
     },
-    notifications = {
+    buttons = {
       type = "group",
-      name = "Notifications",
-      order = 2,
+      name = "Buttons",
+      order = 6,
       args = {
-        header = { type = "header", name = "Notifications", order = 0 },
-        desc = { type = "description", name = "Configure when and how you are notified (dev placeholders).", order = 1 },
-        enableSound = {
-          type = "toggle",
-          name = "Enable sound",
-          desc = "Play a sound when a notification is shown.",
-          get = function() return devGet("enableSound") ~= false end,
-          set = function(_, v) devSet("enableSound", v) end,
-          order = 10,
-        },
-        notifyInCombat = {
-          type = "toggle",
-          name = "Notify in combat",
-          desc = "Show notifications even while in combat.",
-          get = function() return devGet("notifyInCombat") end,
-          set = function(_, v) devSet("notifyInCombat", v) end,
-          order = 20,
-        },
-        notificationDuration = {
-          type = "input",
-          name = "Duration (seconds)",
-          desc = "How long notifications stay on screen.",
-          get = function() return tostring(devGet("notificationDuration") or "5") end,
-          set = function(_, v) devSet("notificationDuration", v) end,
-          order = 30,
-        },
-        testNotify = {
+        header = { type = "header", name = "Buttons", order = 0 },
+        desc = { type = "description", name = "Execute / button controls.", order = 1 },
+        divider = { type = "divider", order = 2 },
+        btnPrint = {
           type = "execute",
-          name = "Test notification",
-          func = function() printMsg("Test notification (dev)") end,
-          order = 40,
-        },
-      },
-    },
-    combat = {
-      type = "group",
-      name = "Combat",
-      order = 3,
-      args = {
-        header = { type = "header", name = "Combat", order = 0 },
-        autoToggleCombatLog = {
-          type = "toggle",
-          name = "Auto combat log",
-          desc = "Placeholder.",
-          get = function() return devGet("autoCombatLog") ~= false end,
-          set = function(_, v) devSet("autoCombatLog", v) end,
+          name = "Print test",
+          func = function() printMsg("Button clicked") end,
           order = 10,
         },
-        showCombatFeedback = {
-          type = "toggle",
-          name = "Combat feedback",
-          desc = "Show on-screen feedback during combat (placeholder).",
-          get = function() return devGet("combatFeedback") end,
-          set = function(_, v) devSet("combatFeedback", v) end,
-          order = 20,
-        },
-        hideInCombat = {
-          type = "toggle",
-          name = "Hide UI in combat",
-          desc = "Hide certain UI elements when entering combat.",
-          get = function() return devGet("hideInCombat") end,
-          set = function(_, v) devSet("hideInCombat", v) end,
-          order = 30,
-        },
-      },
-    },
-    raid = {
-      type = "group",
-      name = "Raid & Dungeons",
-      order = 4,
-      args = {
-        header = { type = "header", name = "Raid & Dungeons", order = 0 },
-        desc = { type = "description", name = "Options for group content (placeholders).", order = 1 },
-        showRaidFrames = {
-          type = "toggle",
-          name = "Show raid frames",
-          desc = "Display custom raid frames when in a raid group.",
-          get = function() return devGet("showRaidFrames") end,
-          set = function(_, v) devSet("showRaidFrames", v) end,
-          order = 10,
-        },
-        announceKeystones = {
-          type = "toggle",
-          name = "Announce keystones",
-          desc = "Announce your mythic+ keystone to party or guild.",
-          get = function() return devGet("announceKeystones") end,
-          set = function(_, v) devSet("announceKeystones", v) end,
-          order = 20,
-        },
-        dungeonFilter = {
-          type = "input",
-          name = "Dungeon filter",
-          desc = "Filter dungeons by name or ID (placeholder).",
-          get = function() return tostring(devGet("dungeonFilter") or "") end,
-          set = function(_, v) devSet("dungeonFilter", v) end,
-          order = 30,
-        },
-        resetSettings = {
+        btnReload = {
           type = "execute",
-          name = "Reset raid options",
-          func = function() printMsg("Raid options reset (dev)") end,
-          order = 40,
-        },
-      },
-    },
-    interface = {
-      type = "group",
-      name = "Interface",
-      order = 5,
-      args = {
-        header = { type = "header", name = "Interface", order = 0 },
-        tooltipsEnabled = {
-          type = "toggle",
-          name = "Show tooltips",
-          desc = "Enable tooltips for addon elements.",
-          get = function() return devGet("tooltips") ~= false end,
-          set = function(_, v) devSet("tooltips", v) end,
-          order = 10,
-        },
-        fontSize = {
-          type = "input",
-          name = "Font size",
-          desc = "Base font size for addon text (e.g. 12).",
-          get = function() return tostring(devGet("fontSize") or "12") end,
-          set = function(_, v) devSet("fontSize", v) end,
+          name = "Reload UI",
+          func = function() ReloadUI() end,
           order = 20,
         },
-        language = {
-          type = "input",
-          name = "Language code",
-          desc = "Override language (e.g. enUS, deDE). Leave empty for game locale.",
-          get = function() return tostring(devGet("language") or "") end,
-          set = function(_, v) devSet("language", v) end,
+        btnDisabled = {
+          type = "execute",
+          name = "Disabled button",
+          disabled = true,
+          func = function() end,
           order = 30,
         },
       },
+    },
+    scroll = {
+      type = "group",
+      name = "Scroll",
+      order = 7,
+      args = {},
     },
     debug = {
       type = "group",
       name = "Debug",
-      order = 6,
+      order = 8,
       args = {
         header = { type = "header", name = "Debug", order = 0 },
-        desc = { type = "description", name = "Development and debugging options.", order = 1 },
+        desc = { type = "description", name = "Development utilities.", order = 1 },
+        divider = { type = "divider", order = 2 },
         verboseLogging = {
           type = "toggle",
           name = "Verbose logging",
-          desc = "Print extra debug messages to chat.",
           get = function() return devGet("verbose") end,
           set = function(_, v) devSet("verbose", v) end,
           order = 10,
@@ -238,76 +329,38 @@ local options = {
           end,
           order = 20,
         },
-        reloadUI = {
-          type = "execute",
-          name = "Reload UI",
-          func = function() ReloadUI() end,
+        verboseDisabled = {
+          type = "toggle",
+          name = "Disabled toggle",
+          disabled = true,
+          get = function() return false end,
+          set = function() end,
           order = 30,
         },
-      },
-    },
-    testing = {
-      type = "group",
-      name = "Testing",
-      order = 7,
-      args = {
-        header = { type = "header", name = "Scroll & controls test", order = 0 },
-        desc = { type = "description", name = "Many options to test scrollbar and all control types.", order = 1 },
-        singleChoice = {
-          type = "select",
-          name = "Single choice",
-          values = { a = "Option A", b = "Option B", c = "Option C" },
-          get = function() return devGet("singleChoice") or "a" end,
-          set = function(_, v) devSet("singleChoice", v) end,
-          order = 5,
-        },
-        multiChoice = {
-          type = "multiselect",
-          name = "Multi choice",
-          desc = "Pick multiple options.",
-          values = { x = "Extra", y = "Yes", z = "Zoom" },
-          get = function(_, k) return (devGet("multiChoice") or {})[k] end,
-          set = function(_, k, v)
-            LiqUIDB.dev = LiqUIDB.dev or {}
-            LiqUIDB.dev.multiChoice = LiqUIDB.dev.multiChoice or {}
-            LiqUIDB.dev.multiChoice[k] = v
-          end,
-          order = 6,
-        },
-        testColor = {
-          type = "color",
-          name = "Test color",
-          hasAlpha = true,
-          get = function()
-            local c = LiqUIDB.dev and LiqUIDB.dev.testColor
-            if c then return c.r, c.g, c.b, c.a or 1 end
-            return 0.5, 0.5, 0.5, 1
-          end,
-          set = function(_, r, g, b, a)
-            LiqUIDB.dev = LiqUIDB.dev or {}
-            LiqUIDB.dev.testColor = { r = r, g = g, b = b, a = a or 1 }
-          end,
-          order = 7,
+        dumpDisabled = {
+          type = "execute",
+          name = "Disabled dump",
+          disabled = true,
+          func = function() end,
+          order = 40,
         },
       },
-    },
-    scrollTest = {
-      type = "group",
-      name = "Scroll test",
-      order = 8,
-      args = {},
     },
   },
 }
 
 do
-  local scrollArgs = options.args.scrollTest.args
-  scrollArgs.header = { type = "header", name = "Many rows for scrollbar", order = 0 }
+  local scrollArgs = options.args.scroll.args
+  scrollArgs.header = { type = "header", name = "Scroll", order = 0 }
+  scrollArgs.desc = { type = "description", name = "Many rows to test scrollbar visibility.", order = 1 }
+  scrollArgs.divider = { type = "divider", order = 2 }
   for i = 1, 28 do
     local isInput = (i % 4 == 0)
+    local isDisabled = (i <= 2)
     scrollArgs["row" .. i] = {
       type = isInput and "input" or "toggle",
-      name = "Option " .. i,
+      name = "Option " .. i .. (isDisabled and " (disabled)" or ""),
+      disabled = isDisabled,
       order = 10 + i,
     }
     if isInput then

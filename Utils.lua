@@ -193,3 +193,105 @@ function Highlight:Hide()
   end
   self.Highlight:Hide()
 end
+
+---Create a ScrollFrame with a thin vertical scroll bar (UISliderTemplate, no arrows).
+---Scroll bar is a sibling at the right edge of parent; anchor scrollFrame to fill parent minus bar width so content does not overlap the bar.
+---Returns the ScrollFrame; use frame.scrollChild for content and frame:UpdateScrollBar() after content size changes.
+---@param parent Frame
+---@param name string?
+---@param options { barWidth?: number, scrollStep?: number }?
+---@return ScrollFrame scrollFrame with .scrollChild and :UpdateScrollBar()
+function Utils.CreateScrollFrame(parent, name, options)
+  options = options or {}
+  local barWidth = options.barWidth or 6
+  local scrollStep = options.scrollStep or 20
+
+  local scrollFrame = CreateFrame("ScrollFrame", name, parent)
+  local scrollChild = CreateFrame("Frame", nil, scrollFrame)
+  scrollChild:SetSize(1, 1)
+  scrollFrame:SetScrollChild(scrollChild)
+  scrollFrame.scrollChild = scrollChild
+
+  local bar = CreateFrame("Slider", nil, parent, "UISliderTemplate")
+  bar:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
+  bar:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
+  bar:SetWidth(barWidth)
+  bar:SetOrientation("VERTICAL")
+  bar:SetMinMaxValues(0, 100)
+  bar:SetValue(0)
+  bar:SetValueStep(1)
+  bar:SetObeyStepOnDrag(false)
+  bar.scrollStep = scrollStep
+  local thumb = bar:GetThumbTexture()
+  thumb:SetColorTexture(1, 1, 1, 0.15)
+  thumb:SetWidth(barWidth)
+  bar:SetScript("OnValueChanged", function(_, value)
+    scrollFrame:SetVerticalScroll(value)
+  end)
+  bar:SetScript("OnEnter", function()
+    thumb:SetColorTexture(1, 1, 1, 0.2)
+  end)
+  bar:SetScript("OnLeave", function()
+    thumb:SetColorTexture(1, 1, 1, 0.15)
+  end)
+  bar:SetScript("OnMouseWheel", function(_, delta)
+    local step = bar.scrollStep or bar:GetHeight() / 2
+    if delta > 0 then
+      bar:SetValue(bar:GetValue() - step)
+    else
+      bar:SetValue(bar:GetValue() + step)
+    end
+  end)
+  if bar.NineSlice then
+    bar.NineSlice:Hide()
+  end
+  scrollFrame.ScrollBar = bar
+
+  function scrollFrame:UpdateScrollBar()
+    local range = self:GetVerticalScrollRange()
+    if not range or range <= 0 then
+      self:SetVerticalScroll(0)
+      bar:SetValue(0)
+      bar:Hide()
+      return
+    end
+    local viewHeight = self:GetHeight()
+    local contentHeight = scrollChild:GetHeight() or 1
+    bar:SetMinMaxValues(0, range)
+    local step = bar.scrollStep or bar:GetHeight() / 2
+    bar:SetValueStep(step)
+    local ratio = viewHeight / contentHeight
+    local thumbHeight = math.max(32, math.min(viewHeight * ratio, viewHeight - 8))
+    thumb:SetHeight(thumbHeight)
+    thumb:SetWidth(barWidth)
+    bar:SetValue(self:GetVerticalScroll())
+    bar:Show()
+  end
+
+  scrollFrame:SetScript("OnSizeChanged", function()
+    local w = scrollFrame:GetWidth()
+    if w and w > 0 then
+      scrollChild:SetWidth(w)
+    end
+    scrollFrame:UpdateScrollBar()
+  end)
+  scrollFrame:SetScript("OnScrollRangeChanged", function()
+    scrollFrame:UpdateScrollBar()
+  end)
+  scrollChild:SetScript("OnSizeChanged", function()
+    scrollFrame:UpdateScrollBar()
+  end)
+  scrollFrame:SetScript("OnVerticalScroll", function(_, offset)
+    if bar:IsVisible() then
+      bar:SetValue(offset)
+    end
+  end)
+  scrollFrame:SetScript("OnMouseWheel", function(_, delta)
+    if bar:IsVisible() then
+      bar:SetValue(bar:GetValue() - delta * scrollStep)
+    end
+  end)
+
+  scrollFrame:UpdateScrollBar()
+  return scrollFrame
+end

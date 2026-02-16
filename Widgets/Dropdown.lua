@@ -2,12 +2,13 @@
 local C = LiqUI.Config
 
 local DropdownDefaults = {
-  width = 180,
+  width = C.control.dropdownWidth,
   height = C.control.dropdownItemHeight,
   padding = C.control.padding,
   dropdownItemHeight = C.control.dropdownItemHeight,
   dropdownListMaxHeight = C.control.dropdownListMaxHeight,
   textColor = C.text.defaultColor,
+  disabled = false,
   values = {},
   value = nil,
   OnValueChanged = nil,
@@ -118,5 +119,9 @@ function LiqUI.Widgets.CreateDropdown(parent, options)
   end
 
   frame:SetValue(current)
+  if opts.disabled then
+    triggerBtn:Disable()
+    frame:SetAlpha(0.5)
+  end
   return frame
 end

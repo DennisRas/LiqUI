@@ -6,6 +6,9 @@ local CheckBoxDefaults = {
   padding = C.control.padding,
   label = nil,
   checked = false,
+  disabled = false,
+  checkedColor = C.primary.defaultColor,
+  hoverColor = C.text.mutedColor,
   OnValueChanged = nil,
 }
 
@@ -14,18 +17,38 @@ function LiqUI.Widgets.CreateCheckBox(parent, options)
   Mixin(frame, LiqUI.Widgets.BaseMixin)
   frame.options = frame:Init(CheckBoxDefaults, options)
 
+  local innerSize = math.max(2, frame.options.width / 2)
   local checkedTexture = frame:CreateTexture(nil, "OVERLAY")
   checkedTexture:SetPoint("CENTER")
-  checkedTexture:SetSize(frame.options.width - 6, frame.options.height - 6)
-  checkedTexture:SetTexture("Interface/Buttons/UI-CheckBox-Check")
-  checkedTexture:SetVertexColor(1, 1, 1, 1)
+  checkedTexture:SetSize(innerSize, innerSize)
   frame.checkedTexture = checkedTexture
 
   local checked = frame.options.checked and true or false
+  local hovered = false
+  local opts = frame.options
   local function UpdateVisual()
-    if checked then checkedTexture:Show() else checkedTexture:Hide() end
+    if checked then
+      checkedTexture:SetColorTexture(opts.checkedColor:GetRGBA())
+      checkedTexture:Show()
+    elseif frame:IsEnabled() and hovered then
+      checkedTexture:SetColorTexture(opts.hoverColor:GetRGBA())
+      checkedTexture:Show()
+    else
+      checkedTexture:Hide()
+    end
   end
   UpdateVisual()
+
+  frame:SetScript("OnEnter", function()
+    hovered = true
+    frame:SetBorderState("highlight")
+    UpdateVisual()
+  end)
+  frame:SetScript("OnLeave", function()
+    hovered = false
+    frame:SetBorderState("normal")
+    UpdateVisual()
+  end)
 
   if frame.options.label and frame.options.label ~= "" then
     frame.label = LiqUI.Utils.CreateLabel(parent, frame.options.label,
@@ -48,5 +71,9 @@ function LiqUI.Widgets.CreateCheckBox(parent, options)
     UpdateVisual()
   end
 
+  if frame.options.disabled then
+    frame:Disable()
+    frame:SetAlpha(0.5)
+  end
   return frame
 end

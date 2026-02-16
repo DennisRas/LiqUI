@@ -16,6 +16,9 @@ Widgets/Base.lua
 Widgets/EditBox.lua
 Widgets/CheckBox.lua
 Widgets/Button.lua
+Widgets/Header.lua
+Widgets/Description.lua
+Widgets/Divider.lua
 Widgets/Dropdown.lua
 Widgets/MultiSelect.lua
 Widgets/ColorPicker.lua
