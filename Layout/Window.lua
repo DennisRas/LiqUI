@@ -148,12 +148,12 @@ function Window:New(options)
   end
 
   function frame:SetTitle(title)
-    if not self.config.titlebar then return end
+    if not self.options.titlebar then return end
     self.titlebar.titleFontString:SetText(title)
   end
 
   function frame:SetBodySize(width, height)
-    local h = self.config.titlebar and (height + self.config.titlebarHeight) or height
+    local h = self.options.titlebar and (height + self.options.titlebarHeight) or height
     self:SetSize(width, h)
   end
 
