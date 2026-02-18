@@ -1,39 +1,44 @@
 local C = LiqUI.Config
 local s = C.settings
-local sb = s.sidebar
-local fm = s.form
+local menuConfig = s.menu
+local formConfig = s.form
 local BACKDROP = C.shared.backdropTexture
+local CONTENT_SCROLL_BAR_WIDTH = 6
 
 LiqUIDB = LiqUIDB or {}
 
-local registrations = {}
-
 local Settings = {}
 LiqUI.Settings = Settings
+
+Settings.registrations = {}
 
 ---Register an addon's options with the Settings UI.
 ---Each addon has at least one page (e.g. General).
 ---AceConfig-compatible: { type = "group", args = { general = { type = "group", name = "General", args = {...} } } }
 ---@param id string Addon identifier (e.g. "LiqMe")
----@param options table|fun():table AceConfig format or { General = opts }
----@param label string? Display name in sidebar (defaults to id)
+---@param options table|fun():table AceConfig format or { General = options }
+---@param label string? Display name in menu (defaults to id)
 ---@param icon string? Texture path for addon icon (or nil to try TOC X-Icon / X-AddonIcon)
 function Settings:Register(id, options, label, icon)
-  registrations[id] = {
+  self.registrations[id] = {
     options = options,
     label = label or id,
     icon = icon,
   }
+  if self.menuScrollBox then
+    self:UpdateMenu()
+  end
 end
 
 ---Extract pages from options. Supports:
 ---1. AceConfig: { type = "group", args = { general = { type = "group", name = "General", args = {...} } } }
 ---2. Shorthand: { General = { type = "group", args = {...} } }
 ---3. Single group: { type = "group", args = {...} } -> wrapped as General
+---@param reg table registration with .options
+---@return table? pages keyed by page id
 local function NormalizePages(reg)
   local raw = type(reg.options) == "function" and reg.options() or reg.options
   if not raw then return nil end
-  -- AceConfig: root has type="group" and args with subgroup entries
   if raw.type == "group" and raw.args then
     local pages = {}
     for key, val in pairs(raw.args) do
@@ -46,7 +51,6 @@ local function NormalizePages(reg)
     end
     return { general = raw }
   end
-  -- Shorthand { General = {...} } or single group
   if raw.args then
     return { General = raw }
   end
@@ -56,7 +60,10 @@ end
 ---Unregister an addon's options.
 ---@param id string
 function Settings:Unregister(id)
-  registrations[id] = nil
+  self.registrations[id] = nil
+  if self.menuScrollBox then
+    self:UpdateMenu()
+  end
 end
 
 local function GetOptionValue(opt, path, handler)
@@ -94,17 +101,20 @@ local function RefreshFormValues(formFrame)
   end
 end
 
+---@param parent Frame
+---@param options table group options or AceConfig group
+---@param handler table? optional get/set handler
 local function BuildForm(parent, options, handler)
-  local opts = options
-  if opts.type == "group" then
-    opts = opts
+  local groupOptions = options
+  if groupOptions.type == "group" then
+    groupOptions = groupOptions
   else
-    opts = { type = "group", args = opts.args or opts }
+    groupOptions = { type = "group", args = groupOptions.args or groupOptions }
   end
 
   parent.formRows = {}
-  local args = opts.args or {}
-  local y = -fm.padding
+  local args = groupOptions.args or {}
+  local y = -formConfig.padding
 
   for key in LiqUI.Utils.SortedPairs(args) do
     local opt = args[key]
@@ -116,13 +126,13 @@ local function BuildForm(parent, options, handler)
       local control
 
       if optType == "input" then
-        local val = GetOptionValue(opt, { key }, opts.handler or handler)
+        local val = GetOptionValue(opt, { key }, groupOptions.handler or handler)
         local widget = LiqUI.Widgets.CreateEditBox(parent, {
           value = tostring(val or ""),
           inputType = opt.inputType or "text",
           disabled = isDisabled,
           OnValueChanged = function(v)
-            SetOptionValue(opt, { key }, opts.handler or handler, v)
+            SetOptionValue(opt, { key }, groupOptions.handler or handler, v)
           end,
         })
         control = LiqUI.Layout.FormRow:New({
@@ -132,14 +142,14 @@ local function BuildForm(parent, options, handler)
           widget = widget,
         })
         table.insert(parent.formRows,
-          { widget = widget, getValue = function() return GetOptionValue(opt, { key }, opts.handler or handler) end })
+          { widget = widget, getValue = function() return GetOptionValue(opt, { key }, groupOptions.handler or handler) end })
       elseif optType == "toggle" then
-        local val = GetOptionValue(opt, { key }, opts.handler or handler)
+        local val = GetOptionValue(opt, { key }, groupOptions.handler or handler)
         local widget = LiqUI.Widgets.CreateCheckBox(parent, {
           checked = val,
           disabled = isDisabled,
           OnValueChanged = function(v)
-            SetOptionValue(opt, { key }, opts.handler or handler, v)
+            SetOptionValue(opt, { key }, groupOptions.handler or handler, v)
           end,
         })
         control = LiqUI.Layout.FormRow:New({
@@ -149,7 +159,7 @@ local function BuildForm(parent, options, handler)
           widget = widget,
         })
         table.insert(parent.formRows,
-          { widget = widget, getValue = function() return GetOptionValue(opt, { key }, opts.handler or handler) end })
+          { widget = widget, getValue = function() return GetOptionValue(opt, { key }, groupOptions.handler or handler) end })
       elseif optType == "execute" then
         local func = opt.func
         if type(func) == "function" then
@@ -171,13 +181,13 @@ local function BuildForm(parent, options, handler)
         local values = opt.values
         if type(values) == "function" then values = values() end
         if type(values) == "table" then
-          local val = GetOptionValue(opt, { key }, opts.handler or handler)
+          local val = GetOptionValue(opt, { key }, groupOptions.handler or handler)
           local widget = LiqUI.Widgets.CreateDropdown(parent, {
             values = values,
             value = val,
             disabled = isDisabled,
             OnValueChanged = function(v)
-              SetOptionValue(opt, { key }, opts.handler or handler, v)
+              SetOptionValue(opt, { key }, groupOptions.handler or handler, v)
             end,
           })
           control = LiqUI.Layout.FormRow:New({
@@ -187,7 +197,7 @@ local function BuildForm(parent, options, handler)
             widget = widget,
           })
           table.insert(parent.formRows,
-            { widget = widget, getValue = function() return GetOptionValue(opt, { key }, opts.handler or handler) end })
+            { widget = widget, getValue = function() return GetOptionValue(opt, { key }, groupOptions.handler or handler) end })
         end
       elseif optType == "multiselect" then
         local values = opt.values
@@ -200,7 +210,10 @@ local function BuildForm(parent, options, handler)
               local info = { arg = opt.arg }
               if opt.get then
                 if type(opt.get) == "function" then return opt.get(info, k) end
-                if opts.handler and opts.handler[opt.get] then return opts.handler[opt.get](opts.handler, info, k) end
+                if groupOptions.handler and groupOptions.handler[opt.get] then
+                  return groupOptions.handler[opt.get](
+                    groupOptions.handler, info, k)
+                end
               end
               return false
             end,
@@ -208,7 +221,10 @@ local function BuildForm(parent, options, handler)
               local info = { arg = opt.arg }
               if opt.set then
                 if type(opt.set) == "function" then opt.set(info, k, v) end
-                if opts.handler and opts.handler[opt.set] then opts.handler[opt.set](opts.handler, info, k, v) end
+                if groupOptions.handler and groupOptions.handler[opt.set] then
+                  groupOptions.handler[opt.set](
+                    groupOptions.handler, info, k, v)
+                end
               end
             end,
           })
@@ -225,7 +241,10 @@ local function BuildForm(parent, options, handler)
           if not opt.get then return 1, 1, 1, 1 end
           local info = { arg = opt.arg }
           if type(opt.get) == "function" then return opt.get(info) end
-          if opts.handler and opt.get and opts.handler[opt.get] then return opts.handler[opt.get](opts.handler, info) end
+          if groupOptions.handler and opt.get and groupOptions.handler[opt.get] then
+            return groupOptions.handler
+                [opt.get](groupOptions.handler, info)
+          end
           return 1, 1, 1, 1
         end
         local gr, gg, gb, ga = getColor()
@@ -241,8 +260,8 @@ local function BuildForm(parent, options, handler)
             local info = { arg = opt.arg }
             if opt.set then
               if type(opt.set) == "function" then opt.set(info, nr, ng, nb, na) end
-              if opts.handler and opt.set and opts.handler[opt.set] then
-                opts.handler[opt.set](opts.handler, info, nr, ng,
+              if groupOptions.handler and opt.set and groupOptions.handler[opt.set] then
+                groupOptions.handler[opt.set](groupOptions.handler, info, nr, ng,
                   nb, na)
               end
             end
@@ -267,13 +286,13 @@ local function BuildForm(parent, options, handler)
         control:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, y)
         control:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, y)
         local h = control:GetHeight() or 24
-        local spacingAfter = fm.rowSpacingDefault
+        local spacingAfter = formConfig.rowSpacingDefault
         if type(opt.spacingAfter) == "number" then
           spacingAfter = opt.spacingAfter
         elseif optType == "header" then
-          spacingAfter = fm.rowSpacingAfterHeader
+          spacingAfter = formConfig.rowSpacingAfterHeader
         elseif optType == "description" then
-          spacingAfter = fm.rowSpacingAfterDescription
+          spacingAfter = formConfig.rowSpacingAfterDescription
         elseif optType == "divider" then
           spacingAfter = 0
         end
@@ -282,320 +301,257 @@ local function BuildForm(parent, options, handler)
     end
   end
 
-  parent:SetHeight(math.max(1, -y + fm.padding))
+  parent:SetHeight(math.max(1, -y + formConfig.padding))
 end
 
-local settingsWindow = nil
+local function getFirstAddonId(registrations)
+  local ids = {}
+  for id in pairs(registrations) do ids[#ids + 1] = id end
+  if #ids == 0 then return nil end
+  table.sort(ids, function(a, b)
+    return (registrations[a].label or a) < (registrations[b].label or b)
+  end)
+  return ids[1]
+end
 
---- Pool helpers: acquire returns a frame (from pool or new), release returns it to the pool.
-local function acquireFromPool(pool, createFn)
-  if #pool > 0 then
-    return table.remove(pool)
+local function getFirstPageId(registration)
+  local pages = NormalizePages(registration)
+  if not pages then return nil end
+  local raw = type(registration.options) == "function" and registration.options() or registration.options
+  local args = raw and raw.args or pages
+  for pageId in LiqUI.Utils.SortedPairs(args) do
+    if pages[pageId] then return pageId end
   end
-  return createFn()
+  return nil
 end
 
-local function releaseToPool(pool, frame, resetFn)
-  if resetFn then resetFn(frame) end
-  frame:SetParent(nil)
-  frame:Hide()
-  table.insert(pool, frame)
-end
-
-local function BuildTree()
-  local addons = {}
-  for id, reg in pairs(registrations) do
+---Rebuild menu from registrations. Pool buttons, hide all, then show/update per flat list. Call when registrations change or when showing a page.
+function Settings:UpdateMenu()
+  if not self.menuScrollBox then return end
+  self.menuExpanded = self.menuExpanded or {}
+  local scrollChild = self.menuScrollBox.scrollChild
+  local addonIds = {}
+  for id in pairs(self.registrations) do addonIds[#addonIds + 1] = id end
+  table.sort(addonIds, function(a, b)
+    return strcmputf8i(self.registrations[a].label or a, self.registrations[b].label or b) < 0
+  end)
+  local list = {}
+  for _, id in ipairs(addonIds) do
+    local reg = self.registrations[id]
     local pages = NormalizePages(reg)
     if pages then
-      local raw = type(reg.options) == "function" and reg.options() or reg.options
-      local args = raw and raw.args or pages
-      local pageList = {}
-      for pageId in LiqUI.Utils.SortedPairs(args) do
-        local pageOpts = pages[pageId]
-        if pageOpts then
-          local label = pageId
-          if type(pageOpts) == "table" and type(pageOpts.name) == "string" then
-            label = pageOpts.name
+      list[#list + 1] = { type = "addon", id = id, label = reg.label or id }
+      if self.menuExpanded[id] ~= false then
+        local raw = type(reg.options) == "function" and reg.options() or reg.options
+        local args = raw and raw.args or pages
+        for pageId in LiqUI.Utils.SortedPairs(args) do
+          local pageOpts = pages[pageId]
+          if pageOpts then
+            local label = pageId
+            if type(pageOpts) == "table" and type(pageOpts.name) == "string" then label = pageOpts.name end
+            list[#list + 1] = { type = "page", id = pageId, label = label, addonId = id }
           end
-          local order = (type(pageOpts) == "table" and type(pageOpts.order) == "number") and pageOpts.order or 100
-          table.insert(pageList, { pageId = pageId, pageLabel = label, order = order })
         end
       end
-      table.sort(pageList, function(a, b)
-        if a.order ~= b.order then return a.order < b.order end
-        return a.pageLabel < b.pageLabel
-      end)
-      local icon = reg.icon
-      if not icon and C_AddOns and C_AddOns.GetAddOnMetadata then
-        icon = C_AddOns.GetAddOnMetadata(id, "X-Icon") or C_AddOns.GetAddOnMetadata(id, "X-AddonIcon")
-      end
-      table.insert(addons, {
-        addonId = id,
-        addonLabel = reg.label or id,
-        addonIcon = icon,
-        expanded = true,
-        pages = pageList,
-      })
     end
   end
-  table.sort(addons, function(a, b) return a.addonLabel < b.addonLabel end)
-  return addons
+  self.menuButtons = self.menuButtons or {}
+  local padding = menuConfig.padding or 8
+  local itemHeight = menuConfig.itemHeight or 24
+  local pageIndent = menuConfig.pageIndent or 16
+  for i = 1, #self.menuButtons do
+    self.menuButtons[i]:Hide()
+  end
+  local offsetY = 0
+  local currentAddonId = self.currentAddonId
+  local currentPageId = self.currentPageId
+  for index, entry in ipairs(list) do
+    local button = self.menuButtons[index]
+    if not button then
+      button = CreateFrame("Button", "$parentMenuButton" .. index, scrollChild)
+      Mixin(button, LiqUI.Mixins.Highlight)
+      button.menuLabel = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+      button.menuLabel:SetJustifyH("LEFT")
+      self.menuButtons[index] = button
+    end
+    local labelLeft = padding + ((entry.type == "page") and pageIndent or 0)
+    button.menuLabel:ClearAllPoints()
+    button.menuLabel:SetPoint("LEFT", button, "LEFT", labelLeft, 0)
+    button.menuLabel:SetPoint("RIGHT", button, "RIGHT", -padding, 0)
+    button.menuLabel:SetText(entry.label or entry.id)
+    button:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -offsetY)
+    button:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", 0, -offsetY)
+    button:SetHeight(itemHeight)
+    button.entry = entry
+
+
+    local addonTextColor = CreateColorFromHexString("FFCCC562")
+    local addonTextColorHover = CreateColorFromHexString("FFCCC562")
+    local pageTextColor = CreateColorFromHexString("FFCCCCCC")
+    local pageTextColorSelected = CreateColorFromHexString("FFFFFFFF")
+    local pageTextColorHover = CreateColorFromHexString("FFFFFFFF")
+    local highlightColor = CreateColorFromHexString("0CFFFFFF")
+    local isSelected = self.currentAddonId == entry.addonId and self.currentPageId == entry.id
+
+    button:SetScript("OnClick", function()
+      if entry.type == "addon" then
+        for id in pairs(self.registrations) do
+          self.menuExpanded[id] = false
+        end
+        self.menuExpanded[entry.id] = not self.menuExpanded[entry.id]
+        if self.menuExpanded[entry.id] then
+          self:ShowPage(entry.id)
+        else
+          self:UpdateMenu()
+        end
+      else
+        self:ShowPage(entry.addonId, entry.id)
+      end
+    end)
+    button:SetScript("OnEnter", function()
+      if entry.type == "page" then
+        button.menuLabel:SetTextColor((isSelected and pageTextColorSelected or pageTextColorHover):GetRGBA())
+        button:ShowHighlight(highlightColor:GetRGBA())
+      else
+        button.menuLabel:SetTextColor(addonTextColorHover:GetRGBA())
+      end
+    end)
+    button:SetScript("OnLeave", function()
+      if entry.type == "page" then
+        button.menuLabel:SetTextColor((isSelected and pageTextColorSelected or pageTextColor):GetRGBA())
+        button:HideHighlight()
+      else
+        button.menuLabel:SetTextColor(addonTextColor:GetRGBA())
+      end
+    end)
+
+    local color
+    if entry.type == "addon" then
+      color = addonTextColor
+    elseif isSelected then
+      color = pageTextColorSelected
+    else
+      color = pageTextColor
+    end
+    button.menuLabel:SetTextColor(color:GetRGBA())
+    button:Show()
+    offsetY = offsetY + itemHeight
+  end
+  local menuWidth = math.max(1, (menuConfig.width or 200) - (menuConfig.scrollBarWidth or 12))
+  scrollChild:SetSize(menuWidth, offsetY)
+  self.menuScrollBox:FullUpdate(true)
 end
 
-local SCROLL_BAR_WIDTH = 8
+function Settings:ShowPage(addonId, pageId)
+  if not self.scrollChild then return end
+  local registration = self.registrations[addonId]
+  if not registration then return end
 
----Open the Settings window. Creates it if needed.
-function Settings:Open()
-  if not settingsWindow then
-    settingsWindow = LiqUI.Window:New({
-      name = "LiqUISettings",
-      title = "Settings",
-      point = { "CENTER", 0, 0 },
-    })
-    settingsWindow:SetBodySize(s.windowWidth, s.windowHeight)
-
-    local body = settingsWindow.body
-    local tree = BuildTree()
-    local selectedAddonId = nil
-    local selectedPageId = nil
-    local sidebarRows = {}
-    local formFrame = nil
-    local formCache = {} -- formCache[addonId][pageId] = formFrame
-    local sidebarAddonPool = {}
-    local sidebarPagePool = {}
-
-    local function createAddonRowButton()
-      local addonBtn = CreateFrame("Button", nil, nil, "BackdropTemplate")
-      addonBtn:SetHeight(sb.itemHeight)
-      addonBtn:SetBackdrop({ bgFile = BACKDROP, tile = true, tileSize = 8 })
-      addonBtn:SetBackdropColor(C.sidebar.rowBackgroundColor:GetRGBA())
-      local iconLeft
-      local iconTex = addonBtn:CreateTexture(nil, "OVERLAY")
-      iconTex:SetPoint("LEFT", addonBtn, "LEFT", sb.padding, 0)
-      iconTex:SetSize(sb.iconSize, sb.iconSize)
-      addonBtn.iconTex = iconTex
-      local iconPlaceholder = addonBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-      iconPlaceholder:SetPoint("LEFT", addonBtn, "LEFT", sb.padding, 0)
-      iconPlaceholder:SetSize(sb.iconSize, sb.iconSize)
-      iconPlaceholder:SetJustifyH("CENTER")
-      iconPlaceholder:SetJustifyV("MIDDLE")
-      iconPlaceholder:SetText("?")
-      iconPlaceholder:SetTextColor(C.text.placeholderColor:GetRGBA())
-      addonBtn.iconPlaceholder = iconPlaceholder
-      local label = addonBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalLeftOrange")
-      label:SetPoint("LEFT", iconTex, "RIGHT", 4, 0)
-      label:SetPoint("RIGHT", addonBtn, "RIGHT", -sb.padding - sb.arrowWidth - 4, 0)
-      label:SetJustifyH("LEFT")
-      addonBtn.label = label
-      local arrowTex = addonBtn:CreateTexture(nil, "OVERLAY")
-      arrowTex:SetPoint("RIGHT", addonBtn, "RIGHT", -sb.padding, 0)
-      arrowTex:SetSize(sb.arrowWidth, sb.arrowHeight)
-      arrowTex:SetScale(0.8)
-      addonBtn.arrowTex = arrowTex
-      return addonBtn
-    end
-
-    local function createPageRowButton()
-      local pageBtn = CreateFrame("Button", nil, nil, "BackdropTemplate")
-      pageBtn:SetHeight(sb.itemHeight)
-      pageBtn:SetBackdrop({ bgFile = BACKDROP, tile = true, tileSize = 8 })
-      local pageLabel = pageBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-      pageLabel:SetPoint("LEFT", pageBtn, "LEFT", sb.pageIndent + sb.padding, 0)
-      pageLabel:SetPoint("RIGHT", pageBtn, "RIGHT", -sb.padding, 0)
-      pageLabel:SetJustifyH("LEFT")
-      pageBtn.label = pageLabel
-      return pageBtn
-    end
-
-    local function releaseSidebarAddon(btn)
-      btn:SetScript("OnClick", nil)
-      btn:SetScript("OnEnter", nil)
-      btn:SetScript("OnLeave", nil)
-      btn.addonRef = nil
-      releaseToPool(sidebarAddonPool, btn, nil)
-    end
-
-    local function releaseSidebarPage(btn)
-      btn:SetScript("OnClick", nil)
-      btn:SetScript("OnEnter", nil)
-      btn:SetScript("OnLeave", nil)
-      releaseToPool(sidebarPagePool, btn, nil)
-    end
-
-    local sidebar = CreateFrame("Frame", "$parentSidebar", body, "BackdropTemplate")
-    sidebar:SetPoint("TOPLEFT", body, "TOPLEFT", 0, 0)
-    sidebar:SetPoint("BOTTOMLEFT", body, "BOTTOMLEFT", 0, 0)
-    sidebar:SetWidth(sb.width)
-    sidebar:SetBackdrop({ bgFile = BACKDROP, tile = true, tileSize = 8 })
-    sidebar:SetBackdropColor(C.sidebar.backgroundColor:GetRGBA())
-
-    local content = CreateFrame("Frame", "$parentContent", body)
-    content:SetPoint("TOPLEFT", sidebar, "TOPRIGHT", 0, 0)
-    content:SetPoint("BOTTOMRIGHT", body, "BOTTOMRIGHT", 0, 0)
-    content:SetFrameLevel(sidebar:GetFrameLevel() + 1)
-
-    local scrollFrame = LiqUI.Utils.CreateScrollFrame(content, "$parentScroll", { barWidth = 6 })
-    scrollFrame:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
-    scrollFrame:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -SCROLL_BAR_WIDTH, 0)
-    local scrollChild = scrollFrame.scrollChild
-
-    local function ShowPage(addonId, pageId)
-      selectedAddonId = addonId
-      selectedPageId = pageId
-      local reg = registrations[addonId]
-      if not reg then return end
-      local pages = NormalizePages(reg)
-      local opts = pages and pages[pageId]
-      if not opts then return end
-      if formFrame then
-        formFrame:SetParent(nil)
-        formFrame:Hide()
-      end
-      formCache[addonId] = formCache[addonId] or {}
-      local cached = formCache[addonId][pageId]
-      if cached then
-        formFrame = cached
-        formFrame:SetParent(scrollChild)
-        formFrame:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", fm.padding, 0)
-        formFrame:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", -fm.padding, 0)
-        formFrame:Show()
-        RefreshFormValues(formFrame)
-      else
-        local scrollW = math.max(1, scrollFrame:GetWidth() or 400)
-        scrollChild:SetSize(scrollW, 1)
-        formFrame = CreateFrame("Frame", nil, scrollChild)
-        formFrame:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", fm.padding, 0)
-        formFrame:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", -fm.padding, 0)
-        BuildForm(formFrame, opts)
-        formCache[addonId][pageId] = formFrame
-      end
-      scrollChild:SetHeight(formFrame:GetHeight())
-      scrollFrame:SetVerticalScroll(0)
-      C_Timer.After(0, function()
-        scrollFrame:UpdateScrollBar()
-      end)
-    end
-
-    local function RefreshSidebar()
-      for _, r in ipairs(sidebarRows) do
-        if r.btn then
-          if r.isAddon then
-            releaseSidebarAddon(r.btn)
-          else
-            releaseSidebarPage(r.btn)
-          end
-        end
-      end
-      sidebarRows = {}
-
-      local y = 0
-      for _, addon in ipairs(tree) do
-        local expanded = addon.expanded ~= false
-        local addonBtn = acquireFromPool(sidebarAddonPool, createAddonRowButton)
-        addonBtn:SetParent(sidebar)
-        addonBtn:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, y)
-        addonBtn:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", 0, y)
-        addonBtn:SetBackdropColor(C.sidebar.rowBackgroundColor:GetRGBA())
-        if addon.addonIcon and addon.addonIcon ~= "" then
-          addonBtn.iconTex:SetTexture(addon.addonIcon)
-          addonBtn.iconTex:Show()
-          addonBtn.iconPlaceholder:Hide()
-          addonBtn.label:SetPoint("LEFT", addonBtn.iconTex, "RIGHT", 4, 0)
-        else
-          addonBtn.iconTex:SetTexture(nil)
-          addonBtn.iconTex:Hide()
-          addonBtn.iconPlaceholder:Show()
-          addonBtn.label:SetPoint("LEFT", addonBtn.iconPlaceholder, "RIGHT", 4, 0)
-        end
-        addonBtn.label:SetText(addon.addonLabel or addon.addonId)
-        addonBtn.arrowTex:SetRotation(expanded and sb.arrowRotationDown or sb.arrowRotationRight)
-        addonBtn.arrowTex:SetAtlas(expanded and sb.arrowAtlas or sb.arrowAtlasDisabled)
-        addonBtn.addonRef = addon
-        addonBtn:SetScript("OnClick", function()
-          if not addon.expanded then
-            for _, a in ipairs(tree) do
-              a.expanded = (a == addon)
-            end
-            if addon.pages and #addon.pages > 0 then
-              ShowPage(addon.addonId, addon.pages[1].pageId)
-            end
-          else
-            addon.expanded = false
-          end
-          RefreshSidebar()
-        end)
-        addonBtn:SetScript("OnEnter", function()
-          addonBtn:SetBackdropColor(C.sidebar.rowBackgroundColorHover:GetRGBA())
-          addonBtn.arrowTex:SetRotation(addon.expanded and sb.arrowRotationDown or sb.arrowRotationRight)
-          addonBtn.arrowTex:SetAtlas(sb.arrowAtlasHover)
-        end)
-        addonBtn:SetScript("OnLeave", function()
-          addonBtn:SetBackdropColor(C.sidebar.rowBackgroundColor:GetRGBA())
-          local exp = addonBtn.addonRef and addonBtn.addonRef.expanded ~= false
-          addonBtn.arrowTex:SetRotation(exp and sb.arrowRotationDown or sb.arrowRotationRight)
-          addonBtn.arrowTex:SetAtlas(exp and sb.arrowAtlas or sb.arrowAtlasDisabled)
-        end)
-        addonBtn:Show()
-        sidebarRows[#sidebarRows + 1] = { btn = addonBtn, isAddon = true }
-        y = y - sb.itemHeight
-
-        if expanded and addon.pages and #addon.pages > 0 then
-          for _, page in ipairs(addon.pages) do
-            local pageBtn = acquireFromPool(sidebarPagePool, createPageRowButton)
-            pageBtn:SetParent(sidebar)
-            pageBtn:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, y)
-            pageBtn:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", 0, y)
-            local isSelected = (selectedAddonId == addon.addonId and selectedPageId == page.pageId)
-            local sc = isSelected and C.sidebar.pageSelectedColor or C.sidebar.rowBackgroundColor
-            pageBtn:SetBackdropColor(sc:GetRGBA())
-            pageBtn.label:SetText(page.pageLabel or page.pageId)
-            pageBtn.label:SetTextColor(C.text.defaultColor:GetRGBA())
-            pageBtn:SetScript("OnClick", function()
-              ShowPage(addon.addonId, page.pageId)
-              RefreshSidebar()
-            end)
-            pageBtn:SetScript("OnEnter", function()
-              if selectedAddonId ~= addon.addonId or selectedPageId ~= page.pageId then
-                pageBtn:SetBackdropColor(C.sidebar.pageBackgroundColorHover:GetRGBA())
-              end
-            end)
-            pageBtn:SetScript("OnLeave", function()
-              if selectedAddonId ~= addon.addonId or selectedPageId ~= page.pageId then
-                pageBtn:SetBackdropColor(C.sidebar.rowBackgroundColor:GetRGBA())
-              end
-            end)
-            pageBtn:Show()
-            sidebarRows[#sidebarRows + 1] = { btn = pageBtn, isAddon = false }
-            y = y - sb.itemHeight
-          end
-        end
-      end
-    end
-
-    if #tree > 0 then
-      for i, a in ipairs(tree) do
-        a.expanded = (i == 1)
-      end
-      if tree[1].pages and #tree[1].pages > 0 then
-        ShowPage(tree[1].addonId, tree[1].pages[1].pageId)
-      end
-    end
-    RefreshSidebar()
+  if not pageId then
+    pageId = getFirstPageId(registration)
+    if not pageId then return end
   end
 
-  settingsWindow:Show()
+  self.currentAddonId = addonId
+  self.currentPageId = pageId
+  for id in pairs(self.registrations) do
+    self.menuExpanded[id] = (id == addonId)
+  end
+
+  local pages = NormalizePages(registration)
+  local pageOptions = pages and pages[pageId]
+  if not pageOptions then return end
+  if self.formFrame then
+    self.formFrame:SetParent(nil)
+    self.formFrame:Hide()
+  end
+  self.formCache[addonId] = self.formCache[addonId] or {}
+  local cached = self.formCache[addonId][pageId]
+  if cached then
+    self.formFrame = cached
+    self.formFrame:SetParent(self.scrollChild)
+    self.formFrame:SetPoint("TOPLEFT", self.scrollChild, "TOPLEFT", formConfig.padding, 0)
+    self.formFrame:SetPoint("TOPRIGHT", self.scrollChild, "TOPRIGHT", -formConfig.padding, 0)
+    self.formFrame:Show()
+    RefreshFormValues(self.formFrame)
+  else
+    self.formFrame = CreateFrame("Frame", nil, self.scrollChild)
+    self.formFrame:SetPoint("TOPLEFT", self.scrollChild, "TOPLEFT", formConfig.padding, 0)
+    self.formFrame:SetPoint("TOPRIGHT", self.scrollChild, "TOPRIGHT", -formConfig.padding, 0)
+    BuildForm(self.formFrame, pageOptions)
+    self.formCache[addonId][pageId] = self.formFrame
+  end
+  local contentWidth = math.max(1, self.contentScrollBox:GetWidth() or 400)
+  self.scrollChild:SetSize(contentWidth, self.formFrame:GetHeight())
+  self.contentScrollBox:FullUpdate(true)
+
+  self:UpdateMenu()
+end
+
+---Create all window frames on load. Call once (e.g. at end of file). Populates menu from current registrations.
+function Settings:Init()
+  if self.window then return end
+  local window = LiqUI.Window:New({
+    name = "LiqUISettings",
+    title = "Settings",
+    point = { "CENTER", 0, 0 },
+  })
+  window:SetBodySize(s.windowWidth, s.windowHeight)
+  local body = window.body
+
+  local menuContainer = CreateFrame("Frame", "$parentMenu", body, "BackdropTemplate")
+  menuContainer:SetPoint("TOPLEFT", body, "TOPLEFT", 0, 0)
+  menuContainer:SetPoint("BOTTOMLEFT", body, "BOTTOMLEFT", 0, 0)
+  menuContainer:SetWidth(menuConfig.width)
+  menuContainer:SetBackdrop({ bgFile = BACKDROP, tile = true, tileSize = 8 })
+  menuContainer:SetBackdropColor(C.menu.backgroundColor:GetRGBA())
+
+  local contentContainer = CreateFrame("Frame", "$parentContent", body)
+  contentContainer:SetPoint("TOPLEFT", menuContainer, "TOPRIGHT", 0, 0)
+  contentContainer:SetPoint("BOTTOMRIGHT", body, "BOTTOMRIGHT", 0, 0)
+  contentContainer:SetFrameLevel(menuContainer:GetFrameLevel() + 1)
+
+  local contentScrollBox = LiqUI.Utils.CreateScrollBox(contentContainer, "$parentScroll",
+    { barWidth = CONTENT_SCROLL_BAR_WIDTH })
+  contentScrollBox:SetPoint("TOPLEFT", contentContainer, "TOPLEFT", 0, 0)
+  contentScrollBox:SetPoint("BOTTOMRIGHT", contentContainer, "BOTTOMRIGHT", -CONTENT_SCROLL_BAR_WIDTH, 0)
+  local scrollChild = contentScrollBox.scrollChild
+
+  local menuScrollBox = LiqUI.Utils.CreateScrollBox(menuContainer, "$parentMenuScroll",
+    { barWidth = menuConfig.scrollBarWidth or 12 })
+  menuScrollBox:SetPoint("TOPLEFT", menuContainer, "TOPLEFT", 0, 0)
+  menuScrollBox:SetPoint("BOTTOMRIGHT", menuContainer, "BOTTOMRIGHT", -(menuConfig.scrollBarWidth or 12), 0)
+
+  self.window = window
+  self.menu = menuContainer
+  self.content = contentContainer
+  self.contentScrollBox = contentScrollBox
+  self.scrollChild = scrollChild
+  self.menuScrollBox = menuScrollBox
+  self.formFrame = nil
+  self.formCache = {}
+  self:UpdateMenu()
+end
+
+---Open the Settings window. Init must have run (on load). Shows first page if none selected.
+---@return nil
+function Settings:Open()
+  local firstAddonId = getFirstAddonId(self.registrations)
+  if firstAddonId then
+    self:ShowPage(firstAddonId)
+  end
+  self.window:Show()
 end
 
 ---Toggle the Settings window.
 function Settings:Toggle()
-  if settingsWindow and settingsWindow:IsVisible() then
-    settingsWindow:Hide()
+  if self.window and self.window:IsVisible() then
+    self.window:Hide()
   else
     self:Open()
   end
 end
 
--- LiqUI's own settings (auto open on load)
 Settings:Register("LiqUI", {
   type = "group",
   args = {
@@ -616,7 +572,8 @@ Settings:Register("LiqUI", {
   },
 }, "LiqUI")
 
--- Auto-open on load when option is set
+Settings:Init()
+
 local autoOpenFrame = CreateFrame("Frame")
 autoOpenFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 autoOpenFrame:SetScript("OnEvent", function(_, event)

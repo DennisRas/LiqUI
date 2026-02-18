@@ -11,7 +11,8 @@ end
 function Utils.CreateLabel(parent, text, anchor)
   local fs = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   if anchor then
-    fs:SetPoint(anchor.point or "LEFT", anchor.relativeTo or parent, anchor.relativePoint or "LEFT", anchor.x or 0, anchor.y or 0)
+    fs:SetPoint(anchor.point or "LEFT", anchor.relativeTo or parent, anchor.relativePoint or "LEFT", anchor.x or 0,
+      anchor.y or 0)
   end
   fs:SetText(text or "")
   fs:SetTextColor(LiqUI.Config.text.defaultColor:GetRGBA())
@@ -161,12 +162,13 @@ function Utils.SortedPairs(tbl)
 end
 
 ---Highlight mixin: overlay for hover/selection. Use Mixin(frame, LiqUI.Mixins.Highlight).
+---Call SetVertexColor(r,g,b,a) then ShowHighlight() / HideHighlight(); does not override frame Show/Hide.
 ---@class LiqUI_HighlightMixin
 LiqUI.Mixins = LiqUI.Mixins or {}
 LiqUI.Mixins.Highlight = {}
 local Highlight = LiqUI.Mixins.Highlight
 
-function Highlight:SetVertexColor(r, g, b, a)
+function Highlight:SetHighlightColor(r, g, b, a)
   if not self.Highlight then
     self.Highlight = self:CreateTexture("Highlight", "OVERLAY")
     self.Highlight:SetTexture("Interface/BUTTONS/WHITE8X8")
@@ -180,118 +182,62 @@ function Highlight:SetVertexColor(r, g, b, a)
   self.Highlight:SetVertexColor(r, g, b, a)
 end
 
-function Highlight:Show(r, g, b, a)
+function Highlight:ShowHighlight(r, g, b, a)
   if not self.Highlight then
-    self:SetVertexColor(r, g, b, a)
+    self:SetHighlightColor(r, g, b, a)
+  elseif r then
+    self:SetHighlightColor(r, g, b, a)
   end
   self.Highlight:Show()
 end
 
-function Highlight:Hide()
+function Highlight:HideHighlight()
   if not self.Highlight then
     return
   end
   self.Highlight:Hide()
 end
 
----Create a ScrollFrame with a thin vertical scroll bar (UISliderTemplate, no arrows).
----Scroll bar is a sibling at the right edge of parent; anchor scrollFrame to fill parent minus bar width so content does not overlap the bar.
----Returns the ScrollFrame; use frame.scrollChild for content and frame:UpdateScrollBar() after content size changes.
+---Create a scrollable content area using Blizzard WowScrollBox + CreateScrollBoxLinearView + MinimalScrollBar.
+---Parent content to .scrollChild and set its height; after content size changes call :FullUpdate(true).
 ---@param parent Frame
 ---@param name string?
----@param options { barWidth?: number, scrollStep?: number }?
----@return ScrollFrame scrollFrame with .scrollChild and :UpdateScrollBar()
-function Utils.CreateScrollFrame(parent, name, options)
+---@param options { barWidth?: number }?
+---@return Frame scrollBox WowScrollBox with .scrollChild, :FullUpdate(), :ScrollToBegin()
+function Utils.CreateScrollBox(parent, name, options)
   options = options or {}
-  local barWidth = options.barWidth or 6
-  local scrollStep = options.scrollStep or 20
+  local barWidth = options.barWidth or 12
 
-  local scrollFrame = CreateFrame("ScrollFrame", name, parent)
-  local scrollChild = CreateFrame("Frame", nil, scrollFrame)
-  scrollChild:SetSize(1, 1)
-  scrollFrame:SetScrollChild(scrollChild)
-  scrollFrame.scrollChild = scrollChild
-
-  local bar = CreateFrame("Slider", nil, parent, "UISliderTemplate")
-  bar:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
-  bar:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
-  bar:SetWidth(barWidth)
-  bar:SetOrientation("VERTICAL")
-  bar:SetMinMaxValues(0, 100)
-  bar:SetValue(0)
-  bar:SetValueStep(1)
-  bar:SetObeyStepOnDrag(false)
-  bar.scrollStep = scrollStep
-  local thumb = bar:GetThumbTexture()
-  thumb:SetColorTexture(1, 1, 1, 0.15)
-  thumb:SetWidth(barWidth)
-  bar:SetScript("OnValueChanged", function(_, value)
-    scrollFrame:SetVerticalScroll(value)
-  end)
-  bar:SetScript("OnEnter", function()
-    thumb:SetColorTexture(1, 1, 1, 0.2)
-  end)
-  bar:SetScript("OnLeave", function()
-    thumb:SetColorTexture(1, 1, 1, 0.15)
-  end)
-  bar:SetScript("OnMouseWheel", function(_, delta)
-    local step = bar.scrollStep or bar:GetHeight() / 2
-    if delta > 0 then
-      bar:SetValue(bar:GetValue() - step)
-    else
-      bar:SetValue(bar:GetValue() + step)
-    end
-  end)
-  if bar.NineSlice then
-    bar.NineSlice:Hide()
-  end
-  scrollFrame.ScrollBar = bar
-
-  function scrollFrame:UpdateScrollBar()
-    local range = self:GetVerticalScrollRange()
-    if not range or range <= 0 then
-      self:SetVerticalScroll(0)
-      bar:SetValue(0)
-      bar:Hide()
-      return
-    end
-    local viewHeight = self:GetHeight()
-    local contentHeight = scrollChild:GetHeight() or 1
-    bar:SetMinMaxValues(0, range)
-    local step = bar.scrollStep or bar:GetHeight() / 2
-    bar:SetValueStep(step)
-    local ratio = viewHeight / contentHeight
-    local thumbHeight = math.max(32, math.min(viewHeight * ratio, viewHeight - 8))
-    thumb:SetHeight(thumbHeight)
-    thumb:SetWidth(barWidth)
-    bar:SetValue(self:GetVerticalScroll())
-    bar:Show()
+  if not ScrollUtil or not CreateScrollBoxLinearView then
+    error(
+    "LiqUI.CreateScrollBox requires Blizzard_SharedXML (ScrollUtil, CreateScrollBoxLinearView). Ensure UI is loaded.")
   end
 
-  scrollFrame:SetScript("OnSizeChanged", function()
-    local w = scrollFrame:GetWidth()
-    if w and w > 0 then
-      scrollChild:SetWidth(w)
-    end
-    scrollFrame:UpdateScrollBar()
-  end)
-  scrollFrame:SetScript("OnScrollRangeChanged", function()
-    scrollFrame:UpdateScrollBar()
-  end)
-  scrollChild:SetScript("OnSizeChanged", function()
-    scrollFrame:UpdateScrollBar()
-  end)
-  scrollFrame:SetScript("OnVerticalScroll", function(_, offset)
-    if bar:IsVisible() then
-      bar:SetValue(offset)
-    end
-  end)
-  scrollFrame:SetScript("OnMouseWheel", function(_, delta)
-    if bar:IsVisible() then
-      bar:SetValue(bar:GetValue() - delta * scrollStep)
+  local scrollBox = CreateFrame("Frame", name, parent, "WowScrollBox")
+  local scrollBar = CreateFrame("EventFrame", nil, parent, "MinimalScrollBar")
+  scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 0, 0)
+  scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 0, 0)
+  scrollBar:SetWidth(barWidth)
+
+  local scrollArea = CreateFrame("Frame", nil, scrollBox)
+  scrollArea.scrollable = true
+  scrollArea:SetSize(1, 1)
+
+  local inset = 0
+  local view = CreateScrollBoxLinearView(inset, inset, inset, inset, 0)
+  view:SetPanExtent(50)
+  ScrollUtil.InitScrollBoxWithScrollBar(scrollBox, scrollBar, view)
+  scrollBar:SetHideIfUnscrollable(true)
+
+  scrollBox.scrollChild = scrollArea
+  scrollBox.ScrollBar = scrollBar
+
+  scrollBox:SetScript("OnSizeChanged", function()
+    local width = scrollBox:GetWidth()
+    if width and width > 0 then
+      scrollArea:SetWidth(width)
     end
   end)
 
-  scrollFrame:UpdateScrollBar()
-  return scrollFrame
+  return scrollBox
 end
