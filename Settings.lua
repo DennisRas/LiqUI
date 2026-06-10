@@ -1,4 +1,4 @@
-local C = LiqUI.Config
+local C = LiqUI.Constants
 local s = C.settings
 local menuConfig = s.menu
 local formConfig = s.form
@@ -116,7 +116,7 @@ local function BuildForm(parent, options, handler)
   local args = groupOptions.args or {}
   local y = -formConfig.padding
 
-  for key in LiqUI.Utils.SortedPairs(args) do
+  for key in LiqUI.Utils:SortedPairs(args) do
     local opt = args[key]
     if opt then
       local optType = opt.type or "input"
@@ -319,7 +319,7 @@ local function getFirstPageId(registration)
   if not pages then return nil end
   local raw = type(registration.options) == "function" and registration.options() or registration.options
   local args = raw and raw.args or pages
-  for pageId in LiqUI.Utils.SortedPairs(args) do
+  for pageId in LiqUI.Utils:SortedPairs(args) do
     if pages[pageId] then return pageId end
   end
   return nil
@@ -344,7 +344,7 @@ function Settings:UpdateMenu()
       if self.menuExpanded[id] ~= false then
         local raw = type(reg.options) == "function" and reg.options() or reg.options
         local args = raw and raw.args or pages
-        for pageId in LiqUI.Utils.SortedPairs(args) do
+        for pageId in LiqUI.Utils:SortedPairs(args) do
           local pageOpts = pages[pageId]
           if pageOpts then
             local label = pageId
@@ -511,13 +511,13 @@ function Settings:Init()
   contentContainer:SetPoint("BOTTOMRIGHT", body, "BOTTOMRIGHT", 0, 0)
   contentContainer:SetFrameLevel(menuContainer:GetFrameLevel() + 1)
 
-  local contentScrollBox = LiqUI.Utils.CreateScrollBox(contentContainer, "$parentScroll",
+  local contentScrollBox = LiqUI.Utils:CreateScrollBox(contentContainer, "$parentScroll",
     { barWidth = CONTENT_SCROLL_BAR_WIDTH })
   contentScrollBox:SetPoint("TOPLEFT", contentContainer, "TOPLEFT", 0, 0)
   contentScrollBox:SetPoint("BOTTOMRIGHT", contentContainer, "BOTTOMRIGHT", -CONTENT_SCROLL_BAR_WIDTH, 0)
   local scrollChild = contentScrollBox.scrollChild
 
-  local menuScrollBox = LiqUI.Utils.CreateScrollBox(menuContainer, "$parentMenuScroll",
+  local menuScrollBox = LiqUI.Utils:CreateScrollBox(menuContainer, "$parentMenuScroll",
     { barWidth = menuConfig.scrollBarWidth or 12 })
   menuScrollBox:SetPoint("TOPLEFT", menuContainer, "TOPLEFT", 0, 0)
   menuScrollBox:SetPoint("BOTTOMRIGHT", menuContainer, "BOTTOMRIGHT", -(menuConfig.scrollBarWidth or 12), 0)

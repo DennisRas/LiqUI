@@ -7,24 +7,20 @@
 ## Category: Library
 ## SavedVariables: LiqUIDB
 
+Libs/LibStub/LibStub.lua
 LiqUI.lua
+Types/Addon.lua
+Types/Constants.lua
+Types/Window.lua
+Types/Table.lua
+Types/Scroll.lua
+Types/Logger.lua
+Constants.lua
 Utils.lua
-Types.lua
-Config.lua
-Layout/Window.lua
-Widgets/Base.lua
-Widgets/EditBox.lua
-Widgets/CheckBox.lua
-Widgets/Button.lua
-Widgets/Header.lua
-Widgets/Description.lua
-Widgets/Divider.lua
-Widgets/Dropdown.lua
-Widgets/MultiSelect.lua
-Widgets/ColorPicker.lua
-Layout/FormRow.lua
-Settings.lua
+Window.lua
+Table.lua
+Logger.lua
 
 #@debug@
-Dev\TestSettings.lua
+Debug/Gallery.lua
 #@end-debug@

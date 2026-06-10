@@ -1,4 +1,4 @@
-local C = LiqUI.Config
+local C = LiqUI.Constants
 
 local DividerDefaults = {
   lineColor = C.form.headerLineColor,
@@ -8,7 +8,7 @@ local DividerDefaults = {
 
 function LiqUI.Widgets.CreateDivider(parent, options)
   local frame = CreateFrame("Frame", nil, parent)
-  local opts = LiqUI.Utils.PrepareOptions(DividerDefaults, options or {})
+  local opts = LiqUI.Utils:PrepareOptions(DividerDefaults, options or {})
   frame.options = opts
 
   local line = frame:CreateTexture(nil, "OVERLAY")

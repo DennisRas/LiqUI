@@ -1,5 +1,5 @@
 ---Multi-select dropdown: click to open list with checkboxes; multiple options can be selected.
-local C = LiqUI.Config
+local C = LiqUI.Constants
 
 local MultiSelectDefaults = {
   width = C.control.dropdownWidth,
@@ -103,7 +103,7 @@ function LiqUI.Widgets.CreateMultiSelect(parent, options)
           updateSummary()
         end)
         row.check = check
-        row.label = LiqUI.Utils.CreateLabel(row, nil, { point = "LEFT", relativeTo = checkBox, relativePoint = "RIGHT", x = 4, y = 0 })
+        row.label = LiqUI.Utils:CreateLabel(row, nil, { point = "LEFT", relativeTo = checkBox, relativePoint = "RIGHT", x = 4, y = 0 })
         row.label:SetJustifyH("LEFT")
         table.insert(list.child.rows, row)
       end
@@ -120,7 +120,7 @@ function LiqUI.Widgets.CreateMultiSelect(parent, options)
     frame:SetBorderState("highlight")
   end)
 
-  frame.label = LiqUI.Utils.CreateLabel(frame, nil, { point = "LEFT", relativeTo = frame, relativePoint = "LEFT", x = opts.padding, y = 0 })
+  frame.label = LiqUI.Utils:CreateLabel(frame, nil, { point = "LEFT", relativeTo = frame, relativePoint = "LEFT", x = opts.padding, y = 0 })
   frame.label:SetPoint("RIGHT", frame, "RIGHT", -24, 0)
   frame.label:SetJustifyH("LEFT")
 

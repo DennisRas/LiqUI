@@ -1,0 +1,11 @@
+---@class LiqUI
+---@field Utils LiqUI_Utils
+---@field Mixins LiqUI_Mixins
+---@field Constants LiqUI_Constants
+---@field Window LiqUI_WindowManager
+---@field Table LiqUI_TableManager
+---@field Logger LiqUI_LoggerManager
+---@field minor number
+
+---@class LiqUI_Mixins
+---@field Highlight LiqUI_HighlightMixin

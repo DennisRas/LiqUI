@@ -1,4 +1,4 @@
-local C = LiqUI.Config
+local C = LiqUI.Constants
 
 local ColorPickerDefaults = {
   width = C.control.colorPickerSwatchSize * 2,

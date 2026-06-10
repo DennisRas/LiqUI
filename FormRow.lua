@@ -1,6 +1,6 @@
 LiqUI.Layout = LiqUI.Layout or {}
 
-local C = LiqUI.Config
+local C = LiqUI.Constants
 local DEFAULTS = { parent = UIParent, label = "", description = "", widget = nil }
 
 local FormRow = {}
@@ -9,7 +9,7 @@ LiqUI.Layout.FormRow = FormRow
 ---@param options { parent?: Frame, label?: string, description?: string, widget: Frame }
 ---@return Frame row
 function FormRow:New(options)
-  local opts = LiqUI.Utils.PrepareOptions(DEFAULTS, options)
+  local opts = LiqUI.Utils:PrepareOptions(DEFAULTS, options)
   local parent = opts.parent
   local widget = opts.widget
   if not widget then

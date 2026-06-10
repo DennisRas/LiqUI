@@ -1,20 +1,16 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+	<Script file="Libs/LibStub/LibStub.lua" />
 	<Script file="LiqUI.lua" />
+	<Script file="Types/Addon.lua" />
+	<Script file="Types/Constants.lua" />
+	<Script file="Types/Window.lua" />
+	<Script file="Types/Table.lua" />
+	<Script file="Types/Scroll.lua" />
+	<Script file="Types/Logger.lua" />
+	<Script file="Constants.lua" />
 	<Script file="Utils.lua" />
-	<Script file="Types.lua" />
-	<Script file="Config.lua" />
-	<Script file="Layout/Window.lua" />
-	<Script file="Widgets/Base.lua" />
-	<Script file="Widgets/EditBox.lua" />
-	<Script file="Widgets/CheckBox.lua" />
-	<Script file="Widgets/Button.lua" />
-	<Script file="Widgets/Header.lua" />
-	<Script file="Widgets/Description.lua" />
-	<Script file="Widgets/Divider.lua" />
-	<Script file="Widgets/Dropdown.lua" />
-	<Script file="Widgets/MultiSelect.lua" />
-	<Script file="Widgets/ColorPicker.lua" />
-	<Script file="Layout/FormRow.lua" />
-	<Script file="Settings.lua" />
+	<Script file="Window.lua" />
+	<Script file="Table.lua" />
+	<Script file="Logger.lua" />
 </Ui>
