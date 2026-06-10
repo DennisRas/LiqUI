@@ -1,0 +1,4 @@
+---@class LiqUI_DB
+---@field windows table<string, LiqUI_WindowDb>
+---@field tables table<string, LiqUI_TableDb>
+---@field loggers table<string, LiqUI_LoggerState>

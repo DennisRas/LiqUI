@@ -8,13 +8,30 @@ local BODY_PLACEHOLDER_TEXT_INSET = 40
 ---@class LiqUI_WindowManager
 local Window = {}
 LiqUI.Window = Window
-Window.windows = {}
+
+local function applyWindowPoint(window, point)
+  if not point or type(point) ~= "table" then
+    return
+  end
+  window:ClearAllPoints()
+  local count = #point
+  if count == 1 then
+    window:SetPoint(point[1])
+  elseif count == 4 then
+    window:SetPoint(point[1], UIParent, point[2], point[3], point[4])
+  elseif count >= 5 then
+    window:SetPoint(unpack(point))
+  end
+end
 
 local function saveWindowDb(window, db)
   if not db then
     return
   end
-  local point, _, relativePoint, x, y = window:GetPoint()
+  local point, relativeTo, relativePoint, x, y = window:GetPoint()
+  if relativeTo and relativeTo ~= UIParent then
+    return
+  end
   db.point = { point, relativePoint, x, y }
 end
 
@@ -30,21 +47,43 @@ local function applyWindowDb(window, db)
     window:SetScale(db.scale / 100)
     window.config.windowScale = db.scale
   end
-  if db.point and type(db.point) == "table" then
-    window:ClearAllPoints()
-    window:SetPoint(unpack(db.point))
+  if db.point then
     window.config.point = db.point
   end
 end
 
+local function repositionTitlebarButtons(window)
+  if not window.titlebar or not window.titlebar.CloseButton then
+    return
+  end
+  local anchorFrame = window.titlebar.CloseButton
+  for _, titlebarButton in ipairs(window.titlebarButtons) do
+    titlebarButton:SetPoint("RIGHT", anchorFrame, "LEFT", 0, 0)
+    anchorFrame = titlebarButton
+  end
+end
+
+---@param instance LiqUI_Instance
+function Window:Embed(instance)
+  instance.Window = LiqUI.BindManager(instance, self, { windows = {} })
+end
+
 ---Create a window frame
 ---@param options LiqUI_WindowOptions
----@param db table|nil
 ---@return LiqUI_Window
-function Window:New(options, db)
+function Window:New(options)
+  if not self.db then
+    error("LiqUI.Window:New requires a LiqUI instance", 2)
+  end
+  if not options or not options.name or options.name == "" then
+    error("LiqUI Window: options.name is required", 2)
+  end
+  local windowName = options.name
+  self.db.windows[windowName] = self.db.windows[windowName] or {}
+  local db = self.db.windows[windowName]
+  local frameName = "LiqUIWindow" .. self.name:gsub("[^%w]", "") .. windowName:gsub("[^%w]", "")
   ---@type LiqUI_Window
-  local window = CreateFrame("Frame",
-    "LiqUIWindow" .. (options and options.name or LiqUI.Utils:TableCount(self.windows) + 1), options.parent or UIParent)
+  local window = CreateFrame("Frame", frameName, options.parent or UIParent)
   ---@type LiqUI_WindowOptions
   local defaultWindowOptions = {
     parent = UIParent,
@@ -56,6 +95,7 @@ function Window:New(options, db)
     windowColor = LiqUI.Constants.layout.defaultWindowColor,
     point = { "CENTER" },
   }
+  ---@type LiqUI_WindowOptions
   local mergedWindowOptions = {}
   LiqUI.Utils:TableMergeConfig(mergedWindowOptions, defaultWindowOptions)
   LiqUI.Utils:TableMergeConfig(mergedWindowOptions, options or {})
@@ -69,7 +109,7 @@ function Window:New(options, db)
   window:SetFrameLevel(3000)
   window:SetToplevel(true)
   window:SetMovable(true)
-  window:SetPoint(unpack(window.config.point))
+  applyWindowPoint(window, window.config.point)
   window:SetSize(window.config.width or 300, window.config.height or 300)
   window:EnableMouse(true) -- Disable click-throughs
   window:SetParent(window.config.parent)
@@ -138,7 +178,10 @@ function Window:New(options, db)
     if buttonConfig.setupMenu then
       -- Create dropdown button
       button = CreateFrame("DropdownButton", "$parent" .. buttonName, window.titlebar)
-      button:SetupMenu(buttonConfig.setupMenu)
+      local setupMenu = buttonConfig.setupMenu
+      button:SetupMenu(function(_, rootMenu)
+        setupMenu(window, rootMenu)
+      end)
     else
       -- Create regular button
       button = CreateFrame("Button", "$parent" .. buttonName, window.titlebar)
@@ -183,14 +226,7 @@ function Window:New(options, db)
     -- Store the button
     table.insert(window.titlebarButtons, button)
 
-    -- Reposition all the buttons from right to left
-    local anchorFrame = window.titlebar.CloseButton
-    if window.titlebarButtons then
-      for _, titlebarButton in ipairs(window.titlebarButtons) do
-        titlebarButton:SetPoint("RIGHT", anchorFrame, "LEFT", 0, 0)
-        anchorFrame = titlebarButton
-      end
-    end
+    repositionTitlebarButtons(window)
 
     return button
   end
@@ -208,16 +244,9 @@ function Window:New(options, db)
     button:Hide()
     button:SetParent(nil)
     window.titlebarButtons = LiqUI.Utils:TableFilter(window.titlebarButtons,
-      function(btn) return btn:GetName() ~= buttonName end)
+      function(titlebarButton) return titlebarButton:GetName() ~= buttonName end)
 
-    -- Reposition all the buttons from right to left
-    local anchorFrame = window.titlebar.CloseButton
-    if window.titlebarButtons then
-      for _, titlebarButton in ipairs(window.titlebarButtons) do
-        titlebarButton:SetPoint("RIGHT", anchorFrame, "LEFT", 0, 0)
-        anchorFrame = titlebarButton
-      end
-    end
+    repositionTitlebarButtons(window)
   end
 
   ---Get a titlebar button by name
@@ -271,7 +300,12 @@ function Window:New(options, db)
     window.titlebar.CloseButton:SetSize(LiqUI.Constants.layout.sizes.titlebar.height,
       LiqUI.Constants.layout.sizes.titlebar.height)
     window.titlebar.CloseButton:RegisterForClicks("AnyUp")
-    window.titlebar.CloseButton:SetScript("OnClick", function() window:Hide() end)
+    window.titlebar.CloseButton:SetScript("OnClick", function()
+      window:Hide()
+      if window.config.onClose then
+        window.config.onClose(window)
+      end
+    end)
     window.titlebar.CloseButton.Icon = window.titlebar:CreateTexture("$parentIcon", "ARTWORK")
     window.titlebar.CloseButton.Icon:SetPoint("CENTER", window.titlebar.CloseButton, "CENTER")
     window.titlebar.CloseButton.Icon:SetSize(10, 10)
@@ -405,7 +439,7 @@ function Window:New(options, db)
 
   window:Hide()
   table.insert(UISpecialFrames, window:GetName())
-  self.windows[window.config.name] = window
+  self.windows[windowName] = window
   return window
 end
 

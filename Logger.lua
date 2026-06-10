@@ -9,6 +9,11 @@ LiqUI.Logger = Logger
 
 local LoggerInstance = {}
 
+---@param instance LiqUI_Instance
+function Logger:Embed(instance)
+  instance.Logger = LiqUI.BindManager(instance, self, { loggers = {} })
+end
+
 ---@param textBox Frame
 ---@param text string
 ---@param scrollToEnd boolean|nil
@@ -37,9 +42,11 @@ local function trimLoggerLines(logger)
 end
 
 ---@param options LiqUI_LoggerOptions?
----@param db LiqUI_LoggerState
 ---@return LiqUI_Logger
-function Logger:New(options, db)
+function Logger:New(options)
+  if not self.db then
+    error("LiqUI.Logger:New requires a LiqUI instance", 2)
+  end
   ---@type LiqUI_LoggerOptions
   local defaultOptions = {
     name = "Logger",
@@ -51,14 +58,36 @@ function Logger:New(options, db)
     clearIconSize = 12,
     fontObject = "ChatFontSmall",
   }
+  ---@type LiqUI_LoggerOptions
+  local mergedOptions = {}
+  LiqUI.Utils:TableMergeConfig(mergedOptions, defaultOptions)
+  LiqUI.Utils:TableMergeConfig(mergedOptions, options or {})
+  local loggerName = mergedOptions.name or "Logger"
+  local loggersDb = self.db.loggers
+  if not loggersDb[loggerName] then
+    ---@type LiqUI_LoggerState
+    local defaultState = {
+      enabled = false,
+      autoScroll = true,
+      autoShow = false,
+      lines = {},
+    }
+    loggersDb[loggerName] = defaultState
+  end
+  local db = loggersDb[loggerName]
+  if not db.lines then
+    db.lines = {}
+  end
   ---@type LiqUI_Logger
-  local instance = setmetatable({
+  local logger = setmetatable({
+    manager = self,
     db = db,
-    config = LiqUI.Utils:TableMergeConfig(defaultOptions, options or {}),
+    config = mergedOptions,
     refreshPending = false,
     window = nil,
   }, { __index = LoggerInstance })
-  return instance
+  self.loggers[loggerName] = logger
+  return logger
 end
 
 function LoggerInstance:Initialize()
@@ -105,7 +134,7 @@ function LoggerInstance:Render()
         },
       },
     }
-    local window = LiqUI.Window:New(windowOptions)
+    local window = self.manager.Window:New(windowOptions)
     window:SetScript("OnShow", function()
       if config.onWindowShow then
         config.onWindowShow(window)

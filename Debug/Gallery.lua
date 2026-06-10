@@ -4,7 +4,9 @@ if not LiqUI then
 end
 
 LiqUIDB = LiqUIDB or {}
-LiqUIDB.gallery = LiqUIDB.gallery or {}
+LiqUIDB.liqui = LiqUIDB.liqui or {}
+
+local liqui = LiqUI:New({ name = "LiqUI", db = LiqUIDB.liqui })
 
 local galleryWindow
 local galleryTable
@@ -62,10 +64,11 @@ local function ensureGallery()
     },
   }
 
-  galleryWindow = LiqUI.Window:New(windowOptions, LiqUIDB.gallery)
+  galleryWindow = liqui.Window:New(windowOptions)
 
   ---@type LiqUI_TableConfig
   local tableConfig = {
+    name = "Gallery",
     header = {
       enabled = true,
       sticky = true,
@@ -125,7 +128,7 @@ local function ensureGallery()
     },
   }
 
-  galleryTable = LiqUI.Table:New(tableConfig, LiqUIDB.gallery)
+  galleryTable = liqui.Table:New(tableConfig)
   galleryTable:SetParent(galleryWindow.body)
   galleryTable:SetAllPoints(galleryWindow.body)
   galleryTable:RenderTable()

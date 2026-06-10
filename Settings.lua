@@ -6,6 +6,9 @@ local BACKDROP = C.shared.backdropTexture
 local CONTENT_SCROLL_BAR_WIDTH = 6
 
 LiqUIDB = LiqUIDB or {}
+LiqUIDB.liqui = LiqUIDB.liqui or {}
+
+local liqui = LiqUI:New({ name = "LiqUI", db = LiqUIDB.liqui })
 
 local Settings = {}
 LiqUI.Settings = Settings
@@ -491,7 +494,7 @@ end
 ---Create all window frames on load. Call once (e.g. at end of file). Populates menu from current registrations.
 function Settings:Init()
   if self.window then return end
-  local window = LiqUI.Window:New({
+  local window = liqui.Window:New({
     name = "LiqUISettings",
     title = "Settings",
     point = { "CENTER", 0, 0 },

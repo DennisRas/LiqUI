@@ -4,14 +4,16 @@
 ---@field tooltipTitle string
 ---@field tooltipDescription string
 ---@field onClick function?
----@field setupMenu function?
+---@field setupMenu fun(window: LiqUI_Window, rootMenu: table)?
 ---@field size number?
 ---@field iconSize number?
 ---@field enabled boolean?
 
+---@alias LiqUI_WindowPointPersisted [string, string, number, number]
+
 ---@class LiqUI_Window : Frame
 ---@field config LiqUI_WindowOptions
----@field db table|nil
+---@field db LiqUI_WindowDb|nil
 ---@field titlebar Frame?
 ---@field body LiqUI_WindowBody?
 ---@field sidebar Frame?
@@ -24,8 +26,13 @@
 ---@class LiqUI_WindowBody : Frame
 ---@field placeholderText FontString?
 
+---@class LiqUI_WindowDb
+---@field point LiqUI_WindowPointPersisted?
+---@field scale number?
+---@field windowColor ColorTable?
+---@field border boolean?
+
 ---@class LiqUI_WindowManager
----@field windows table<string, LiqUI_Window>
 
 ---@class LiqUI_WindowOptions
 ---@field parent Frame?
@@ -41,6 +48,7 @@
 ---@field windowScale number?
 ---@field windowColor ColorTable?
 ---@field titlebarButtons LiqUI_TitlebarButton[]?
+---@field onClose fun(window: LiqUI_Window)?
 
 ---@class LiqUI_WindowProgressBar : StatusBar
 ---@field background Texture

@@ -6,15 +6,27 @@ end
 ---@class LiqUI_TableManager
 local Table = {}
 LiqUI.Table = Table
-Table.frames = {}
+
+---@param instance LiqUI_Instance
+function Table:Embed(instance)
+  instance.Table = LiqUI.BindManager(instance, self, { frames = {} })
+end
 
 ---Create a new table frame
 ---@param config LiqUI_TableConfig?
----@param db table|nil
 ---@return LiqUI_TableFrame
-function Table:New(config, db)
+function Table:New(config)
+  if not self.db then
+    error("LiqUI.Table:New requires a LiqUI instance", 2)
+  end
+  if not config or not config.name or config.name == "" then
+    error("LiqUI Table: config.name is required", 2)
+  end
+  self.db.tables[config.name] = self.db.tables[config.name] or {}
+  local db = self.db.tables[config.name]
+  local frameSuffix = self.name:gsub("[^%w]", "") .. config.name:gsub("[^%w]", "")
   ---@type LiqUI_TableFrame
-  local frame = CreateFrame("Frame", "LiqUITable" .. (LiqUI.Utils:TableCount(self.frames) + 1)) ---@diagnostic disable-line:assign-type-mismatch
+  local frame = CreateFrame("Frame", "LiqUITable" .. frameSuffix) ---@diagnostic disable-line:assign-type-mismatch
 
   ---@type LiqUI_TableConfig
   local defaultConfig = {
@@ -36,6 +48,7 @@ function Table:New(config, db)
     cells = {
       padding = LiqUI.Constants.layout.sizes.padding,
       highlight = false,
+      fontObject = "GameFontHighlight",
     },
     sorting = {
       enabled = false,
@@ -49,6 +62,7 @@ function Table:New(config, db)
       rows = {},
     },
   }
+  ---@type LiqUI_TableConfig
   local mergedConfig = {}
   LiqUI.Utils:TableMergeConfig(mergedConfig, defaultConfig)
   LiqUI.Utils:TableMergeConfig(mergedConfig, config or {})
@@ -400,7 +414,7 @@ function Table:New(config, db)
         if not columnFrame then
           columnFrame = CreateFrame("Button", "$parentCol" .. columnIndex, rowFrame)
           columnFrame.text = columnFrame:CreateFontString("$parentText", "OVERLAY")
-          columnFrame.text:SetFontObject("GameFontHighlight")
+          columnFrame.text:SetFontObject(frame.config.cells.fontObject or "GameFontHighlight")
           rowFrame.columns[columnIndex] = columnFrame
           LiqUI.Utils:BindScrollBoxMouseWheel(columnFrame, frame.scrollFrame:GetWheelScrollBox())
         end

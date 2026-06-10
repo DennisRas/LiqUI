@@ -17,6 +17,7 @@
 ---@field onWindowShow function?
 
 ---@class LiqUI_Logger
+---@field manager LiqUI_InstanceLogger
 ---@field db LiqUI_LoggerState
 ---@field config LiqUI_LoggerOptions
 ---@field window LiqUI_Window|nil

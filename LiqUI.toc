@@ -9,12 +9,13 @@
 
 Libs/LibStub/LibStub.lua
 LiqUI.lua
-Types/Addon.lua
 Types/Constants.lua
 Types/Window.lua
 Types/Table.lua
 Types/Scroll.lua
 Types/Logger.lua
+Types/Database.lua
+Types/Addon.lua
 Constants.lua
 Utils.lua
 Window.lua

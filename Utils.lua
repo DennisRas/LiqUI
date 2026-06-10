@@ -206,21 +206,30 @@ function Highlight:HideHighlight()
 end
 
 ---@param parent Frame
----@param r number
----@param g number
----@param b number
----@param a number
+---@param r number|ColorTable?
+---@param g number?
+---@param b number?
+---@param a number?
 function Utils:SetBackgroundColor(parent, r, g, b, a)
   if not parent.Background then
     parent.Background = parent:CreateTexture("Background", "BACKGROUND")
     parent.Background:SetTexture("Interface/BUTTONS/WHITE8X8")
     parent.Background:SetAllPoints()
   end
+
+  if type(r) == "table" then
+    r, g, b, a = r.r, r.g, r.b, r.a
+  end
+
+  if type(r) == "nil" then
+    r, g, b, a = 0, 0, 0, 0.1
+  end
+
   parent.Background:SetVertexColor(r, g, b, a)
 end
 
 ---@param parent Frame
----@param r number?
+---@param r number|ColorTable?
 ---@param g number?
 ---@param b number?
 ---@param a number?
@@ -230,6 +239,11 @@ function Utils:SetHighlightColor(parent, r, g, b, a)
     parent.Highlight:SetTexture("Interface/BUTTONS/WHITE8X8")
     parent.Highlight:SetAllPoints()
   end
+
+  if type(r) == "table" then
+    r, g, b, a = r.r, r.g, r.b, r.a
+  end
+
   if r == nil then
     r = 1
   end
@@ -243,6 +257,72 @@ function Utils:SetHighlightColor(parent, r, g, b, a)
     a = 0.05
   end
   parent.Highlight:SetVertexColor(r, g, b, a)
+end
+
+---Merge two table arrays
+---@generic T
+---@param tbl1 T[]
+---@param tbl2 T[]
+---@param preserveKeys boolean?
+---@return T[]
+function Utils:TableMerge(tbl1, tbl2, preserveKeys)
+  assert(type(tbl1) == "table", "Must be a table!")
+  assert(type(tbl2) == "table", "Must be a table!")
+  self:TableForEach(tbl2, function(v, k)
+    if preserveKeys then
+      tbl1[k] = v
+    else
+      table.insert(tbl1, v)
+    end
+  end)
+  return tbl1
+end
+
+---Check if a table contains a specific value
+---@generic T
+---@param tbl T[]
+---@param value T
+---@return boolean
+function Utils:TableContains(tbl, value)
+  assert(type(tbl) == "table", "Must be a table!")
+  for _, v in pairs(tbl) do
+    if v == value then
+      return true
+    end
+  end
+  return false
+end
+
+---Toggle a value in a table
+---@generic T
+---@param tbl T[]
+---@param value T
+---@return T[]
+function Utils:TableToggle(tbl, value)
+  if self:TableContains(tbl, value) then
+    return self:TableFilter(tbl, function(v)
+      return v ~= value
+    end)
+  end
+  return self:TableMerge(tbl, { value })
+end
+
+---Remove duplicates from a table
+---@generic T
+---@param tbl T[]
+---@return T[]
+function Utils:TableUnique(tbl)
+  assert(type(tbl) == "table", "Must be a table!")
+  local seen = {}
+  for _, v in pairs(tbl) do
+    seen[v] = true
+  end
+
+  local unique = {}
+  for v in pairs(seen) do
+    table.insert(unique, v)
+  end
+  return unique
 end
 
 local scrollAreaCounter = 0

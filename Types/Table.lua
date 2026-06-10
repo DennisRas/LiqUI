@@ -3,6 +3,7 @@
 ---@field compare? fun(a: LiqUI_TableDataRow, b: LiqUI_TableDataRow): boolean
 
 ---@class LiqUI_TableConfig
+---@field name string?
 ---@field header LiqUI_TableConfigHeader?
 ---@field rows LiqUI_TableConfigRows?
 ---@field columns LiqUI_TableConfigColumns?
@@ -13,6 +14,7 @@
 ---@class LiqUI_TableConfigCells
 ---@field padding number?
 ---@field highlight boolean?
+---@field fontObject string?
 
 ---@class LiqUI_TableConfigColumns
 ---@field width number?
@@ -57,7 +59,7 @@
 
 ---@class LiqUI_TableFrame : Frame
 ---@field config LiqUI_TableConfig
----@field db table|nil
+---@field db LiqUI_TableDb|nil
 ---@field rows table
 ---@field data LiqUI_TableData
 ---@field scrollFrame LiqUI_ScrollArea
@@ -65,8 +67,11 @@
 ---@field contentHeight number
 ---@field sortState LiqUI_TableSortState
 
+---@class LiqUI_TableDb
+---@field sortState LiqUI_TableSortState?
+---@field columnWidths table<string, number>?
+
 ---@class LiqUI_TableManager
----@field frames LiqUI_TableFrame[]
 
 ---@class LiqUI_TableSortConfig
 ---@field enabled boolean
