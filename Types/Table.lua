@@ -1,103 +1,104 @@
----@class LiqUI_TableColumnSorting
+--- Data — SetData shapes (Lua tables, not widgets)
+
+---@alias LiqUI_TableDataValue string|number
+
+---@class LiqUI_TableDataCellExtended
+---@field data LiqUI_TableDataValue|nil
+---@field backgroundColor ColorTable|nil
+---@field onEnter function|nil
+---@field onLeave function|nil
+---@field onClick function|nil
+
+---@alias LiqUI_TableDataCellValue LiqUI_TableDataValue|LiqUI_TableDataCellExtended
+
+---@class LiqUI_TableDataRowExtended
+---@field data LiqUI_TableDataCellValue[]
+---@field height number|nil
+---@field backgroundColor ColorTable|nil
+---@field onEnter function|nil
+---@field onLeave function|nil
+---@field onClick function|nil
+
+---@alias LiqUI_TableDataRow LiqUI_TableDataCellValue[]|LiqUI_TableDataRowExtended
+
+---@alias LiqUI_TableData LiqUI_TableDataRow[]
+
+---@alias LiqUI_TableStoredData LiqUI_TableDataRowExtended[]
+
+--- Config — Table:New options
+
+---@class LiqUI_TableConfigColumn
+---@field id string
+---@field headerText string|nil
+---@field width number
+---@field align "LEFT"|"CENTER"|"RIGHT"|nil
+---@field hideable boolean|nil
+---@field render fun(cell: LiqUI_TableDataCellExtended|nil, row: LiqUI_TableDataRowExtended, rowIndex: integer): LiqUI_TableDataValue|nil
+---@field sorting LiqUI_TableConfigColumnSorting|nil
+---@field onEnter function|nil
+---@field onLeave function|nil
+
+---@class LiqUI_TableConfigColumnSorting
 ---@field enabled boolean
----@field compare? fun(args: LiqUI_TableSortCompareArgs): boolean
-
----@class LiqUI_TableSortCompareArgs
----@field contextA table
----@field contextB table
----@field rowA LiqUI_TableDataRow
----@field rowB LiqUI_TableDataRow
-
----@class LiqUI_TableConfig
----@field name string?
----@field header LiqUI_TableConfigHeader?
----@field rows LiqUI_TableConfigRows?
----@field columns LiqUI_TableConfigColumns?
----@field cells LiqUI_TableConfigCells?
----@field sorting LiqUI_TableSortConfig?
----@field data LiqUI_TableData?
-
----@class LiqUI_TableConfigCells
----@field padding number?
----@field highlight boolean?
----@field fontObject string?
-
----@class LiqUI_TableConfigColumns
----@field width number?
----@field highlight boolean?
----@field striped boolean?
+---@field compare fun(rowA: LiqUI_TableDataRowExtended, rowB: LiqUI_TableDataRowExtended, rowIndexA: integer, rowIndexB: integer): boolean
 
 ---@class LiqUI_TableConfigHeader
 ---@field enabled boolean?
 ---@field sticky boolean?
 ---@field height number?
 
----@class LiqUI_TableConfigRows
+---@class LiqUI_TableConfigRowStyle
 ---@field height number?
 ---@field highlight boolean?
 ---@field striped boolean?
 
----@class LiqUI_TableData
----@field columns LiqUI_TableDataColumn[]?
----@field rows LiqUI_TableDataRow[]
+---@class LiqUI_TableConfigCellStyle
+---@field padding number?
+---@field highlight boolean?
+---@field fontObject string?
 
----@class LiqUI_TableBuildDataOptions
----@field includeHeader boolean?
-
----@class LiqUI_TableRenderArgs
----@field context table
----@field row LiqUI_TableDataRow?
-
----@class LiqUI_TableDataColumn
----@field id string?
----@field headerText string?
----@field width number
----@field align "LEFT"|"CENTER"|"RIGHT"|nil
----@field onEnter function?
----@field onLeave function?
----@field hideable boolean?
----@field render fun(args: LiqUI_TableRenderArgs): LiqUI_TableDataRowColumn?
----@field sorting LiqUI_TableColumnSorting?
-
----@class LiqUI_TableDataRow
----@field columns LiqUI_TableDataRowColumn[]
----@field context table|nil
----@field backgroundColor table|nil
----@field onEnter function?
----@field onLeave function?
----@field onClick function?
-
----@class LiqUI_TableDataRowColumn
----@field text string?
----@field backgroundColor table|nil
----@field onEnter function?
----@field onLeave function?
----@field onClick function?
-
----@class LiqUI_TableFrame : Frame
----@field config LiqUI_TableConfig
----@field db LiqUI_TableDb|nil
----@field rows table
----@field data LiqUI_TableData
----@field scrollFrame LiqUI_ScrollArea
----@field contentWidth number
----@field contentHeight number
----@field sortState LiqUI_TableSortState
-
----@class LiqUI_TableDb
----@field sortState LiqUI_TableSortState?
----@field columnWidths table<string, number>?
----@field hiddenColumns table<string, boolean>?
-
----@class LiqUI_TableManager
-
----@class LiqUI_TableSortConfig
+---@class LiqUI_TableConfigSorting
 ---@field enabled boolean
 ---@field defaultOrder "asc"|"desc"
----@field defaultCompare fun(args: LiqUI_TableSortCompareArgs): boolean
+---@field defaultCompare fun(rowA: LiqUI_TableDataRowExtended, rowB: LiqUI_TableDataRowExtended, rowIndexA: integer, rowIndexB: integer): boolean
 ---@field savedState LiqUI_TableSortState?
----@field onStateChanged? fun(state: LiqUI_TableSortState)
+---@field onStateChanged fun(state: LiqUI_TableSortState)?
+
+---@class LiqUI_TableConfig
+---@field name string?
+---@field columns LiqUI_TableConfigColumn[]?
+---@field header LiqUI_TableConfigHeader?
+---@field rowStyle LiqUI_TableConfigRowStyle?
+---@field cellStyle LiqUI_TableConfigCellStyle?
+---@field sorting LiqUI_TableConfigSorting?
 
 ---@class LiqUI_TableSortState
 ---@field columnId string|nil
 ---@field direction "asc"|"desc"|nil
+
+---@class LiqUI_TableDb
+---@field sortState LiqUI_TableSortState?
+---@field hiddenColumns table<string, boolean>?
+
+--- Frame — WoW widget pool
+
+---@class LiqUI_TableCellFrame : Button
+---@field label FontString
+---@field rowIndex integer
+---@field columnIndex integer
+---@field columnId string|nil
+---@field tableFrame LiqUI_TableFrame
+
+---@class LiqUI_TableRowFrame : Frame
+---@field cells table<integer, LiqUI_TableCellFrame>
+
+---@class LiqUI_TableFrame : Frame
+---@field config LiqUI_TableConfig
+---@field data LiqUI_TableStoredData
+---@field rows table<integer, LiqUI_TableRowFrame>
+---@field scrollArea LiqUI_ScrollArea
+---@field layoutSize { shownWidth: number, shownHeight: number }
+---@field db LiqUI_TableDb|nil
+---@field sortState LiqUI_TableSortState
+
+---@class LiqUI_TableManager

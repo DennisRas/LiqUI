@@ -12,18 +12,39 @@ local galleryWindow
 local galleryTable
 local progressVisible = false
 
-local function buildContextRows()
-  ---@type LiqUI_TableDataRow[]
-  local rows = {}
+---@return LiqUI_TableData
+local function galleryData()
+  ---@type LiqUI_TableData
+  local data = {}
   for index = 1, 40 do
-    ---@type LiqUI_TableDataRow
-    local row = { context = { index = index } }
+    local flag = index % 3 == 0 and "Yes" or "No"
     if index % 5 == 0 then
-      row.backgroundColor = { r = 0.2, g = 0.4, b = 0.6, a = 0.25 }
+      ---@type LiqUI_TableDataRowExtended
+      local row = {
+        data = {
+          format("Row %d", index),
+          index * 10,
+          {
+            data = flag,
+            onEnter = function(cellFrame)
+              GameTooltip:SetOwner(cellFrame, "ANCHOR_RIGHT")
+              GameTooltip:SetText(format("Extended cell on row %d", index), 1, 1, 1)
+              GameTooltip:Show()
+            end,
+            onLeave = function()
+              GameTooltip:Hide()
+            end,
+          },
+        },
+        backgroundColor = { r = 0.2, g = 0.4, b = 0.6, a = 0.25 },
+      }
+      data[index] = row
+    else
+      ---@type LiqUI_TableDataRow
+      data[index] = { format("Row %d", index), index * 10, flag }
     end
-    table.insert(rows, row)
   end
-  return rows
+  return data
 end
 
 local function ensureGallery()
@@ -60,61 +81,47 @@ local function ensureGallery()
 
   galleryWindow = liqui.Window:New(windowOptions)
 
-  ---@type LiqUI_TableDataColumn[]
-  local columns = {
-    {
-      id = "name",
-      headerText = "Name",
-      width = 180,
-      render = function(args)
-        return { text = format("Row %d", args.context.index) }
-      end,
-      sorting = {
-        enabled = true,
-        compare = function(args)
-          local aText = args.rowA.columns[1] and args.rowA.columns[1].text or ""
-          local bText = args.rowB.columns[1] and args.rowB.columns[1].text or ""
-          return aText < bText
-        end
-      }
-    },
-    {
-      id = "value",
-      headerText = "Value",
-      width = 80,
-      render = function(args)
-        return { text = format("%d", args.context.index * 10) }
-      end,
-      sorting = {
-        enabled = true,
-        compare = function(args)
-          local aNum = tonumber(args.rowA.columns[2] and args.rowA.columns[2].text) or 0
-          local bNum = tonumber(args.rowB.columns[2] and args.rowB.columns[2].text) or 0
-          return aNum < bNum
-        end
-      }
-    },
-    {
-      id = "flag",
-      headerText = "Flag",
-      width = 60,
-      render = function(args)
-        return { text = args.context.index % 3 == 0 and "Yes" or "No" }
-      end,
-      sorting = {
-        enabled = true,
-        compare = function(args)
-          local aText = args.rowA.columns[3] and args.rowA.columns[3].text or ""
-          local bText = args.rowB.columns[3] and args.rowB.columns[3].text or ""
-          return aText < bText
-        end
-      }
-    },
-  }
-
   ---@type LiqUI_TableConfig
   local tableConfig = {
     name = "Gallery",
+    columns = {
+      {
+        id = "name",
+        headerText = "Name",
+        width = 180,
+        sorting = {
+          enabled = true,
+          compare = function(rowA, rowB)
+            return rowA.data[1].data < rowB.data[1].data
+          end,
+        },
+      },
+      {
+        id = "value",
+        headerText = "Value",
+        width = 80,
+        sorting = {
+          enabled = true,
+          compare = function(rowA, rowB)
+            return rowA.data[2].data < rowB.data[2].data
+          end,
+        },
+      },
+      {
+        id = "flag",
+        headerText = "Flag",
+        width = 60,
+        sorting = {
+          enabled = true,
+          compare = function(rowA, rowB)
+            if rowA.data[3].data ~= rowB.data[3].data then
+              return rowA.data[3].data == "Yes"
+            end
+            return rowA.data[1].data < rowB.data[1].data
+          end,
+        },
+      },
+    },
     header = {
       enabled = true,
       sticky = true,
@@ -122,19 +129,16 @@ local function ensureGallery()
     sorting = {
       enabled = true,
       defaultOrder = "asc",
-      defaultCompare = function(args)
-        local aText = args.rowA.columns[1] and args.rowA.columns[1].text or ""
-        local bText = args.rowB.columns[1] and args.rowB.columns[1].text or ""
-        return aText < bText
+      defaultCompare = function(rowA, rowB)
+        return rowA.data[1].data < rowB.data[1].data
       end,
     },
-    data = LiqUI.Table.BuildData(columns, buildContextRows()),
   }
 
   galleryTable = liqui.Table:New(tableConfig)
   galleryTable:SetParent(galleryWindow.body)
   galleryTable:SetAllPoints(galleryWindow.body)
-  galleryTable:RenderTable()
+  galleryTable:SetData(galleryData())
 end
 
 SLASH_LIQUI1 = "/liqui"
