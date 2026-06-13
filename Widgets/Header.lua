@@ -8,7 +8,7 @@ local HeaderDefaults = {
 
 function LiqUI.Widgets.CreateHeader(parent, options)
   local frame = CreateFrame("Frame", nil, parent)
-  local opts = LiqUI.Utils:PrepareOptions(HeaderDefaults, options or {})
+  local opts = LiqUI.Utils.PrepareOptions(HeaderDefaults, options or {})
   frame.options = opts
 
   local fontString = frame:CreateFontString(nil, "OVERLAY", opts.fontObject)

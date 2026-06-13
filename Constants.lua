@@ -1,3 +1,4 @@
+---@class LiqUI
 local LiqUI = LibStub and LibStub("LiqUI-1.0", true)
 if not LiqUI then
   return

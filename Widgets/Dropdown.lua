@@ -76,7 +76,7 @@ function LiqUI.Widgets.CreateDropdown(parent, options)
         itemBtn = CreateFrame("Button", nil, list.child, "BackdropTemplate")
         Mixin(itemBtn, LiqUI.Widgets.BaseMixin)
         itemBtn.options = itemBtn:Init({ width = width - 8, height = opts.dropdownItemHeight - 2 }, {})
-        itemBtn.label = LiqUI.Utils:CreateLabel(itemBtn, nil, { point = "LEFT", relativeTo = itemBtn, relativePoint = "LEFT", x = opts.padding, y = 0 })
+        itemBtn.label = LiqUI.Utils.CreateLabel(itemBtn, nil, { point = "LEFT", relativeTo = itemBtn, relativePoint = "LEFT", x = opts.padding, y = 0 })
         itemBtn.label:SetJustifyH("LEFT")
         table.insert(list.child.buttons, itemBtn)
       end
@@ -97,7 +97,7 @@ function LiqUI.Widgets.CreateDropdown(parent, options)
     frame:SetBorderState("highlight")
   end)
 
-  frame.label = LiqUI.Utils:CreateLabel(frame, nil, { point = "LEFT", relativeTo = frame, relativePoint = "LEFT", x = opts.padding, y = 0 })
+  frame.label = LiqUI.Utils.CreateLabel(frame, nil, { point = "LEFT", relativeTo = frame, relativePoint = "LEFT", x = opts.padding, y = 0 })
   frame.label:SetPoint("RIGHT", frame, "RIGHT", -24, 0)
   frame.label:SetJustifyH("LEFT")
 

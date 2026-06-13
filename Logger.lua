@@ -1,3 +1,4 @@
+---@class LiqUI
 local LiqUI = LibStub and LibStub("LiqUI-1.0", true)
 if not LiqUI then
   return
@@ -6,6 +7,9 @@ end
 ---@class LiqUI_LoggerManager
 local Logger = {}
 LiqUI.Logger = Logger
+
+local TableMergeConfig = LiqUI.Utils.TableMergeConfig
+local CreateScrollingEditBox = LiqUI.Utils.CreateScrollingEditBox
 
 local LoggerInstance = {}
 
@@ -60,8 +64,8 @@ function Logger:New(options)
   }
   ---@type LiqUI_LoggerOptions
   local mergedOptions = {}
-  LiqUI.Utils:TableMergeConfig(mergedOptions, defaultOptions)
-  LiqUI.Utils:TableMergeConfig(mergedOptions, options or {})
+  TableMergeConfig(mergedOptions, defaultOptions)
+  TableMergeConfig(mergedOptions, options or {})
   local loggerName = mergedOptions.name or "Logger"
   local loggersDb = self.db.loggers
   if not loggersDb[loggerName] then
@@ -142,7 +146,7 @@ function LoggerInstance:Render()
       self:Render()
     end)
 
-    local scrollHost = LiqUI.Utils:CreateScrollingEditBox(window.body, config.bodyPadding)
+    local scrollHost = CreateScrollingEditBox(window.body, config.bodyPadding)
     local textBox = scrollHost.textBox
     textBox:SetFontObject(config.fontObject or "ChatFontSmall")
 

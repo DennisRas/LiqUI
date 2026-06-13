@@ -24,7 +24,7 @@ function LiqUI.Widgets.CreateEditBox(parent, options)
 
   -- Label
   if frame.options.label and frame.options.label ~= "" then
-    frame.label = LiqUI.Utils:CreateLabel(frame, frame.options.label,
+    frame.label = LiqUI.Utils.CreateLabel(frame, frame.options.label,
       { point = "LEFT", relativeTo = frame, relativePoint = "LEFT", x = 0, y = 0 })
   end
   -- EditBox

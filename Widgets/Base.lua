@@ -52,7 +52,7 @@ function LiqUI.Widgets.BaseMixin:SetBackgroundState(state)
 end
 
 function LiqUI.Widgets.BaseMixin:Init(defaults, opts)
-  opts = LiqUI.Utils:PrepareOptions(LiqUI.Utils:PrepareOptions(BaseControlDefaults, defaults or {}), opts)
+  opts = LiqUI.Utils.PrepareOptions(LiqUI.Utils.PrepareOptions(BaseControlDefaults, defaults or {}), opts)
   self.options = opts
   self:SetSize(opts.width or 100, opts.height)
   self.backdropInfo = (opts.border == false) and opts.backdropNoBorder or opts.backdrop or BaseControlDefaults.backdrop

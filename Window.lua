@@ -1,3 +1,4 @@
+---@class LiqUI
 local LiqUI = LibStub and LibStub("LiqUI-1.0", true)
 if not LiqUI then
   return
@@ -8,6 +9,13 @@ local BODY_PLACEHOLDER_TEXT_INSET = 40
 ---@class LiqUI_WindowManager
 local Window = {}
 LiqUI.Window = Window
+
+local SetBackgroundColor = LiqUI.Utils.SetBackgroundColor
+local TableCopy = LiqUI.Utils.TableCopy
+local TableFilter = LiqUI.Utils.TableFilter
+local TableFind = LiqUI.Utils.TableFind
+local TableForEach = LiqUI.Utils.TableForEach
+local TableMergeConfig = LiqUI.Utils.TableMergeConfig
 
 local function applyWindowPoint(window, point)
   if not point or type(point) ~= "table" then
@@ -41,7 +49,7 @@ local function applyWindowDb(window, db)
   end
   if db.windowColor then
     window.config.windowColor = db.windowColor
-    LiqUI.Utils:SetBackgroundColor(window, db.windowColor.r, db.windowColor.g, db.windowColor.b, db.windowColor.a)
+    SetBackgroundColor(window, db.windowColor.r, db.windowColor.g, db.windowColor.b, db.windowColor.a)
   end
   if db.scale then
     window:SetScale(db.scale / 100)
@@ -97,12 +105,12 @@ function Window:New(options)
   }
   ---@type LiqUI_WindowOptions
   local mergedWindowOptions = {}
-  LiqUI.Utils:TableMergeConfig(mergedWindowOptions, defaultWindowOptions)
-  LiqUI.Utils:TableMergeConfig(mergedWindowOptions, options or {})
+  TableMergeConfig(mergedWindowOptions, defaultWindowOptions)
+  TableMergeConfig(mergedWindowOptions, options or {})
   window.config = mergedWindowOptions
   window.db = db
   if db and not db.windowColor then
-    db.windowColor = LiqUI.Utils:TableCopy(window.config.windowColor)
+    db.windowColor = TableCopy(window.config.windowColor)
   end
   applyWindowDb(window, db)
   window:SetFrameStrata("MEDIUM")
@@ -118,7 +126,7 @@ function Window:New(options)
   window:SetScript("OnSizeChanged", function()
     window:SetClampRectInsets(window:GetWidth() / 2, window:GetWidth() / -2, 0, window:GetHeight() / 2)
   end)
-  LiqUI.Utils:SetBackgroundColor(window, window.config.windowColor.r, window.config.windowColor.g,
+  SetBackgroundColor(window, window.config.windowColor.r, window.config.windowColor.g,
     window.config.windowColor.b, window.config.windowColor.a)
 
   ---Show or hide the window
@@ -202,7 +210,7 @@ function Window:New(options)
     if buttonConfig.tooltipTitle then
       button:SetScript("OnEnter", function()
         button.Icon:SetVertexColor(0.9, 0.9, 0.9, 1)
-        LiqUI.Utils:SetBackgroundColor(button, 1, 1, 1, 0.05)
+        SetBackgroundColor(button, 1, 1, 1, 0.05)
         GameTooltip:SetOwner(button, "ANCHOR_TOP")
         GameTooltip:SetText(buttonConfig.tooltipTitle, 1, 1, 1, 1, true)
         if buttonConfig.tooltipDescription then
@@ -214,7 +222,7 @@ function Window:New(options)
 
       button:SetScript("OnLeave", function()
         button.Icon:SetVertexColor(0.7, 0.7, 0.7, 1)
-        LiqUI.Utils:SetBackgroundColor(button, 1, 1, 1, 0)
+        SetBackgroundColor(button, 1, 1, 1, 0)
         GameTooltip:Hide()
       end)
     end
@@ -234,7 +242,7 @@ function Window:New(options)
   ---Remove a button from the titlebar
   ---@param buttonName string
   function window:RemoveTitlebarButton(buttonName)
-    local button = LiqUI.Utils:TableFind(window.titlebarButtons,
+    local button = TableFind(window.titlebarButtons,
       function(button) return button:GetName() == buttonName end)
     if not button then
       error("Button with name '" .. buttonName .. "' does not exist")
@@ -243,7 +251,7 @@ function Window:New(options)
     -- Remove the button
     button:Hide()
     button:SetParent(nil)
-    window.titlebarButtons = LiqUI.Utils:TableFilter(window.titlebarButtons,
+    window.titlebarButtons = TableFilter(window.titlebarButtons,
       function(titlebarButton) return titlebarButton:GetName() ~= buttonName end)
 
     repositionTitlebarButtons(window)
@@ -253,7 +261,7 @@ function Window:New(options)
   ---@param buttonName string
   ---@return Frame?
   function window:GetTitlebarButton(buttonName)
-    return LiqUI.Utils:TableFind(window.titlebarButtons, function(button) return button:GetName() == buttonName end)
+    return TableFind(window.titlebarButtons, function(button) return button:GetName() == buttonName end)
   end
 
   -- Border
@@ -280,7 +288,7 @@ function Window:New(options)
     window.titlebar:SetPoint("TOPLEFT", window, "TOPLEFT")
     window.titlebar:SetPoint("TOPRIGHT", window, "TOPRIGHT")
     window.titlebar:SetHeight(LiqUI.Constants.layout.sizes.titlebar.height)
-    LiqUI.Utils:SetBackgroundColor(window.titlebar, 0, 0, 0, 0.5)
+    SetBackgroundColor(window.titlebar, 0, 0, 0, 0.5)
     window.titlebar.icon = window.titlebar:CreateTexture("$parentIcon", "ARTWORK")
     window.titlebar.icon:SetPoint("LEFT", window.titlebar, "LEFT", 6, 0)
     window.titlebar.icon:SetSize(20, 20)
@@ -313,7 +321,7 @@ function Window:New(options)
     window.titlebar.CloseButton.Icon:SetVertexColor(0.7, 0.7, 0.7, 1)
     window.titlebar.CloseButton:SetScript("OnEnter", function()
       window.titlebar.CloseButton.Icon:SetVertexColor(1, 1, 1, 1)
-      LiqUI.Utils:SetBackgroundColor(window.titlebar.CloseButton, 1, 0, 0, 0.2)
+      SetBackgroundColor(window.titlebar.CloseButton, 1, 0, 0, 0.2)
       GameTooltip:ClearAllPoints()
       GameTooltip:ClearLines()
       GameTooltip:SetOwner(window.titlebar.CloseButton, "ANCHOR_TOP")
@@ -322,7 +330,7 @@ function Window:New(options)
     end)
     window.titlebar.CloseButton:SetScript("OnLeave", function()
       window.titlebar.CloseButton.Icon:SetVertexColor(0.7, 0.7, 0.7, 1)
-      LiqUI.Utils:SetBackgroundColor(window.titlebar.CloseButton, 1, 1, 1, 0)
+      SetBackgroundColor(window.titlebar.CloseButton, 1, 1, 1, 0)
       GameTooltip:Hide()
     end)
   end
@@ -344,7 +352,7 @@ function Window:New(options)
   window.body:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, topOffset)
   window.body:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", leftOffset, 0)
   window.body:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", 0, 0)
-  LiqUI.Utils:SetBackgroundColor(window.body, 0, 0, 0, 0)
+  SetBackgroundColor(window.body, 0, 0, 0, 0)
 
   -- Sidebar
   if window.config.sidebar then
@@ -352,7 +360,7 @@ function Window:New(options)
     window.sidebar:SetPoint("TOPLEFT", window, "TOPLEFT", 0, topOffset)
     window.sidebar:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT")
     window.sidebar:SetWidth(window.config.sidebar)
-    LiqUI.Utils:SetBackgroundColor(window.sidebar, 0, 0, 0, 0.3)
+    SetBackgroundColor(window.sidebar, 0, 0, 0, 0.3)
   end
 
   -- Initialize titlebar buttons table
@@ -380,7 +388,7 @@ function Window:New(options)
     progressOverlay:SetFrameLevel(overlayLevel)
     progressOverlay:EnableMouse(true)
     progressOverlay:Hide()
-    LiqUI.Utils:SetBackgroundColor(progressOverlay, window.config.windowColor.r, window.config.windowColor.g,
+    SetBackgroundColor(progressOverlay, window.config.windowColor.r, window.config.windowColor.g,
       window.config.windowColor.b, window.config.windowColor.a)
 
     progressOverlay.content = CreateFrame("Frame", "$parentContent", progressOverlay)
@@ -467,7 +475,7 @@ end
 ---Scale each window
 ---@param scale number
 function Window:SetWindowScale(scale)
-  LiqUI.Utils:TableForEach(self.windows, function(window)
+  TableForEach(self.windows, function(window)
     window:SetScale(scale)
   end)
 end
@@ -475,8 +483,8 @@ end
 ---Set background color to each window
 ---@param color ColorTable
 function Window:SetWindowBackgroundColor(color)
-  LiqUI.Utils:TableForEach(self.windows, function(window)
-    LiqUI.Utils:SetBackgroundColor(window, color.r, color.g, color.b, color.a)
+  TableForEach(self.windows, function(window)
+    SetBackgroundColor(window, color.r, color.g, color.b, color.a)
   end)
 end
 

@@ -8,7 +8,7 @@ local DescriptionDefaults = {
 
 function LiqUI.Widgets.CreateDescription(parent, options)
   local frame = CreateFrame("Frame", nil, parent)
-  local opts = LiqUI.Utils:PrepareOptions(DescriptionDefaults, options or {})
+  local opts = LiqUI.Utils.PrepareOptions(DescriptionDefaults, options or {})
   frame.options = opts
 
   local fontString = frame:CreateFontString(nil, "OVERLAY", opts.fontObject)

@@ -1,3 +1,4 @@
+---@class LiqUI
 local LiqUI = LibStub and LibStub("LiqUI-1.0", true)
 if not LiqUI then
   return
@@ -6,6 +7,13 @@ end
 ---@class LiqUI_TableManager
 local Table = {}
 LiqUI.Table = Table
+
+local BindScrollBoxMouseWheel = LiqUI.Utils.BindScrollBoxMouseWheel
+local CreateScrollArea = LiqUI.Utils.CreateScrollArea
+local SetBackgroundColor = LiqUI.Utils.SetBackgroundColor
+local SetHighlightColor = LiqUI.Utils.SetHighlightColor
+local TableForEach = LiqUI.Utils.TableForEach
+local TableMergeConfig = LiqUI.Utils.TableMergeConfig
 
 ---@param instance LiqUI_Instance
 function Table:Embed(instance)
@@ -64,8 +72,8 @@ function Table:New(config)
   }
   ---@type LiqUI_TableConfig
   local mergedConfig = {}
-  LiqUI.Utils:TableMergeConfig(mergedConfig, defaultConfig)
-  LiqUI.Utils:TableMergeConfig(mergedConfig, config or {})
+  TableMergeConfig(mergedConfig, defaultConfig)
+  TableMergeConfig(mergedConfig, config or {})
   frame.config = mergedConfig
   do
     local sorting = frame.config.sorting
@@ -162,7 +170,7 @@ function Table:New(config)
     end
   end
 
-  frame.scrollFrame = LiqUI.Utils:CreateScrollArea(frame, {
+  frame.scrollFrame = CreateScrollArea(frame, {
     name = "$parentScrollArea",
     vertical = true,
     horizontal = false,
@@ -322,8 +330,8 @@ function Table:New(config)
     local offsetY = 0
     local offsetX = 0
 
-    LiqUI.Utils:TableForEach(frame.rows, function(rowFrame) rowFrame:Hide() end)
-    LiqUI.Utils:TableForEach(frame.data.rows, function(row, rowIndex)
+    TableForEach(frame.rows, function(rowFrame) rowFrame:Hide() end)
+    TableForEach(frame.data.rows, function(row, rowIndex)
       local rowFrame = frame.rows[rowIndex]
       local rowHeight = frame.config.rows.height
       local isStickyRow = false
@@ -333,7 +341,7 @@ function Table:New(config)
         rowFrame = CreateFrame("Button", "$parentRow" .. rowIndex, frame)
         rowFrame.columns = {}
         frame.rows[rowIndex] = rowFrame
-        LiqUI.Utils:BindScrollBoxMouseWheel(rowFrame, frame.scrollFrame:GetWheelScrollBox())
+        BindScrollBoxMouseWheel(rowFrame, frame.scrollFrame:GetWheelScrollBox())
       end
 
       if rowIndex == 1 then
@@ -352,19 +360,19 @@ function Table:New(config)
         rowFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
         rowFrame:SetFrameLevel(frame.scrollFrame.verticalScrollBar:GetFrameLevel() + 2)
         if not row.backgroundColor then
-          LiqUI.Utils:SetBackgroundColor(rowFrame, 0, 0, 0, 0.3)
+          SetBackgroundColor(rowFrame, 0, 0, 0, 0.3)
         end
       else
         rowFrame:SetParent(frame.scrollFrame.content)
         rowFrame:SetPoint("TOPLEFT", frame.scrollFrame.content, "TOPLEFT", 0, -offsetY)
         rowFrame:SetWidth(offsetX)
         if frame.config.rows.striped and rowIndex % 2 == 1 then
-          LiqUI.Utils:SetBackgroundColor(rowFrame, 1, 1, 1, .02)
+          SetBackgroundColor(rowFrame, 1, 1, 1, .02)
         end
       end
 
       if row.backgroundColor then
-        LiqUI.Utils:SetBackgroundColor(rowFrame, row.backgroundColor.r, row.backgroundColor.g, row.backgroundColor.b, row.backgroundColor.a)
+        SetBackgroundColor(rowFrame, row.backgroundColor.r, row.backgroundColor.g, row.backgroundColor.b, row.backgroundColor.a)
       end
 
       rowFrame.data = row
@@ -378,7 +386,7 @@ function Table:New(config)
 
       function rowFrame:onEnterHandler(f)
         if rowIndex > 1 or not frame.config.header.enabled then
-          LiqUI.Utils:SetHighlightColor(rowFrame, 1, 1, 1, .05)
+          SetHighlightColor(rowFrame, 1, 1, 1, .05)
         end
         if row.onEnter then
           row:onEnter(f)
@@ -387,7 +395,7 @@ function Table:New(config)
 
       function rowFrame:onLeaveHandler(f)
         if rowIndex > 1 or not frame.config.header.enabled then
-          LiqUI.Utils:SetHighlightColor(rowFrame, 1, 1, 1, 0)
+          SetHighlightColor(rowFrame, 1, 1, 1, 0)
         end
         if row.onLeave then
           row:onLeave(f)
@@ -401,8 +409,8 @@ function Table:New(config)
       end
 
       offsetX = 0
-      LiqUI.Utils:TableForEach(rowFrame.columns, function(columnFrame) columnFrame:Hide() end)
-      LiqUI.Utils:TableForEach(row.columns, function(column, columnIndex)
+      TableForEach(rowFrame.columns, function(columnFrame) columnFrame:Hide() end)
+      TableForEach(row.columns, function(column, columnIndex)
         local columnFrame = rowFrame.columns[columnIndex]
         local columnConfig = frame.data.columns[columnIndex]
         local sortingConfig = frame.config.sorting
@@ -416,7 +424,7 @@ function Table:New(config)
           columnFrame.text = columnFrame:CreateFontString("$parentText", "OVERLAY")
           columnFrame.text:SetFontObject(frame.config.cells.fontObject or "GameFontHighlight")
           rowFrame.columns[columnIndex] = columnFrame
-          LiqUI.Utils:BindScrollBoxMouseWheel(columnFrame, frame.scrollFrame:GetWheelScrollBox())
+          BindScrollBoxMouseWheel(columnFrame, frame.scrollFrame:GetWheelScrollBox())
         end
 
         columnFrame.data = column
@@ -439,9 +447,9 @@ function Table:New(config)
         columnFrame:Show()
 
         if column.backgroundColor then
-          LiqUI.Utils:SetBackgroundColor(columnFrame, column.backgroundColor.r, column.backgroundColor.g, column.backgroundColor.b, column.backgroundColor.a)
+          SetBackgroundColor(columnFrame, column.backgroundColor.r, column.backgroundColor.g, column.backgroundColor.b, column.backgroundColor.a)
         else
-          LiqUI.Utils:SetBackgroundColor(columnFrame, 0, 0, 0, 0)
+          SetBackgroundColor(columnFrame, 0, 0, 0, 0)
         end
 
         if sortingEnabled then
@@ -451,9 +459,9 @@ function Table:New(config)
             and state.columnId == columnConfig.id
             and state.direction ~= nil
           if showSortHighlight then
-            LiqUI.Utils:SetHighlightColor(columnFrame, 1, 1, 1, 0.03)
+            SetHighlightColor(columnFrame, 1, 1, 1, 0.03)
           else
-            LiqUI.Utils:SetHighlightColor(columnFrame, 1, 1, 1, 0)
+            SetHighlightColor(columnFrame, 1, 1, 1, 0)
           end
         end
 

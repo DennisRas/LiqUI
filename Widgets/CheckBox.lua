@@ -51,7 +51,7 @@ function LiqUI.Widgets.CreateCheckBox(parent, options)
   end)
 
   if frame.options.label and frame.options.label ~= "" then
-    frame.label = LiqUI.Utils:CreateLabel(parent, frame.options.label,
+    frame.label = LiqUI.Utils.CreateLabel(parent, frame.options.label,
       { point = "RIGHT", relativeTo = frame, relativePoint = "LEFT", x = -frame.options.padding, y = 0 })
     frame.label:SetJustifyH("RIGHT")
   end
