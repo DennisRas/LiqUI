@@ -12,12 +12,12 @@ local galleryWindow
 local galleryTable
 local progressVisible = false
 
-local function buildSampleDataRows()
+local function buildContextRows()
   ---@type LiqUI_TableDataRow[]
   local rows = {}
   for index = 1, 40 do
     ---@type LiqUI_TableDataRow
-    local row = { data = { index = index } }
+    local row = { context = { index = index } }
     if index % 5 == 0 then
       row.backgroundColor = { r = 0.2, g = 0.4, b = 0.6, a = 0.25 }
     end
@@ -66,14 +66,14 @@ local function ensureGallery()
       id = "name",
       headerText = "Name",
       width = 180,
-      render = function(data)
-        return { text = format("Row %d", data.index) }
+      render = function(args)
+        return { text = format("Row %d", args.context.index) }
       end,
       sorting = {
         enabled = true,
-        compare = function(a, b)
-          local aText = a.columns[1] and a.columns[1].text or ""
-          local bText = b.columns[1] and b.columns[1].text or ""
+        compare = function(args)
+          local aText = args.rowA.columns[1] and args.rowA.columns[1].text or ""
+          local bText = args.rowB.columns[1] and args.rowB.columns[1].text or ""
           return aText < bText
         end
       }
@@ -82,14 +82,14 @@ local function ensureGallery()
       id = "value",
       headerText = "Value",
       width = 80,
-      render = function(data)
-        return { text = format("%d", data.index * 10) }
+      render = function(args)
+        return { text = format("%d", args.context.index * 10) }
       end,
       sorting = {
         enabled = true,
-        compare = function(a, b)
-          local aNum = tonumber(a.columns[2] and a.columns[2].text) or 0
-          local bNum = tonumber(b.columns[2] and b.columns[2].text) or 0
+        compare = function(args)
+          local aNum = tonumber(args.rowA.columns[2] and args.rowA.columns[2].text) or 0
+          local bNum = tonumber(args.rowB.columns[2] and args.rowB.columns[2].text) or 0
           return aNum < bNum
         end
       }
@@ -98,14 +98,14 @@ local function ensureGallery()
       id = "flag",
       headerText = "Flag",
       width = 60,
-      render = function(data)
-        return { text = data.index % 3 == 0 and "Yes" or "No" }
+      render = function(args)
+        return { text = args.context.index % 3 == 0 and "Yes" or "No" }
       end,
       sorting = {
         enabled = true,
-        compare = function(a, b)
-          local aText = a.columns[3] and a.columns[3].text or ""
-          local bText = b.columns[3] and b.columns[3].text or ""
+        compare = function(args)
+          local aText = args.rowA.columns[3] and args.rowA.columns[3].text or ""
+          local bText = args.rowB.columns[3] and args.rowB.columns[3].text or ""
           return aText < bText
         end
       }
@@ -122,13 +122,13 @@ local function ensureGallery()
     sorting = {
       enabled = true,
       defaultOrder = "asc",
-      defaultCompare = function(a, b)
-        local aText = a.columns[1] and a.columns[1].text or ""
-        local bText = b.columns[1] and b.columns[1].text or ""
+      defaultCompare = function(args)
+        local aText = args.rowA.columns[1] and args.rowA.columns[1].text or ""
+        local bText = args.rowB.columns[1] and args.rowB.columns[1].text or ""
         return aText < bText
       end,
     },
-    data = LiqUI.Table.BuildData(columns, buildSampleDataRows()),
+    data = LiqUI.Table.BuildData(columns, buildContextRows()),
   }
 
   galleryTable = liqui.Table:New(tableConfig)

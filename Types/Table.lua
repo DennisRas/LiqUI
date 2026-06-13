@@ -1,6 +1,12 @@
 ---@class LiqUI_TableColumnSorting
 ---@field enabled boolean
----@field compare? fun(a: LiqUI_TableDataRow, b: LiqUI_TableDataRow): boolean
+---@field compare? fun(args: LiqUI_TableSortCompareArgs): boolean
+
+---@class LiqUI_TableSortCompareArgs
+---@field contextA table
+---@field contextB table
+---@field rowA LiqUI_TableDataRow
+---@field rowB LiqUI_TableDataRow
 
 ---@class LiqUI_TableConfig
 ---@field name string?
@@ -38,6 +44,10 @@
 ---@class LiqUI_TableBuildDataOptions
 ---@field includeHeader boolean?
 
+---@class LiqUI_TableRenderArgs
+---@field context table
+---@field row LiqUI_TableDataRow?
+
 ---@class LiqUI_TableDataColumn
 ---@field id string?
 ---@field headerText string?
@@ -46,12 +56,12 @@
 ---@field onEnter function?
 ---@field onLeave function?
 ---@field hideable boolean?
----@field render fun(data: table): LiqUI_TableDataRowColumn?
+---@field render fun(args: LiqUI_TableRenderArgs): LiqUI_TableDataRowColumn?
 ---@field sorting LiqUI_TableColumnSorting?
 
 ---@class LiqUI_TableDataRow
 ---@field columns LiqUI_TableDataRowColumn[]
----@field data table|nil
+---@field context table|nil
 ---@field backgroundColor table|nil
 ---@field onEnter function?
 ---@field onLeave function?
@@ -77,13 +87,14 @@
 ---@class LiqUI_TableDb
 ---@field sortState LiqUI_TableSortState?
 ---@field columnWidths table<string, number>?
+---@field hiddenColumns table<string, boolean>?
 
 ---@class LiqUI_TableManager
 
 ---@class LiqUI_TableSortConfig
 ---@field enabled boolean
 ---@field defaultOrder "asc"|"desc"
----@field defaultCompare fun(a: LiqUI_TableDataRow, b: LiqUI_TableDataRow): boolean
+---@field defaultCompare fun(args: LiqUI_TableSortCompareArgs): boolean
 ---@field savedState LiqUI_TableSortState?
 ---@field onStateChanged? fun(state: LiqUI_TableSortState)
 

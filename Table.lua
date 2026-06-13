@@ -12,15 +12,50 @@ local BindScrollBoxMouseWheel = LiqUI.Utils.BindScrollBoxMouseWheel
 local CreateScrollArea = LiqUI.Utils.CreateScrollArea
 local SetBackgroundColor = LiqUI.Utils.SetBackgroundColor
 local SetHighlightColor = LiqUI.Utils.SetHighlightColor
+local TableFilter = LiqUI.Utils.TableFilter
 local TableForEach = LiqUI.Utils.TableForEach
 local TableMergeConfig = LiqUI.Utils.TableMergeConfig
 
----Assemble table data from column definitions and row stubs with optional `data`.
+---@param rowA LiqUI_TableDataRow
+---@param rowB LiqUI_TableDataRow
+---@return LiqUI_TableSortCompareArgs
+local function sortCompareArgs(rowA, rowB)
+  return {
+    contextA = rowA.context or {},
+    contextB = rowB.context or {},
+    rowA = rowA,
+    rowB = rowB,
+  }
+end
+
 ---@param columns LiqUI_TableDataColumn[]
----@param dataRows LiqUI_TableDataRow[]
+---@return number
+function Table.GetColumnsWidth(columns)
+  local width = 0
+  TableForEach(columns, function(column)
+    width = width + column.width
+  end)
+  return width
+end
+
+---@param columns LiqUI_TableDataColumn[]
+---@param hiddenColumns table<string, boolean>?
+---@return LiqUI_TableDataColumn[]
+function Table.FilterColumns(columns, hiddenColumns)
+  if not hiddenColumns then
+    return columns
+  end
+  return TableFilter(columns, function(column)
+    return column.id and not hiddenColumns[column.id]
+  end)
+end
+
+---Assemble table data from column definitions and context row stubs.
+---@param columns LiqUI_TableDataColumn[]
+---@param contextRows LiqUI_TableDataRow[]
 ---@param options LiqUI_TableBuildDataOptions?
 ---@return LiqUI_TableData
-function Table.BuildData(columns, dataRows, options)
+function Table.BuildData(columns, contextRows, options)
   local includeHeader = not options or options.includeHeader ~= false
   ---@type LiqUI_TableData
   local data = {
@@ -47,18 +82,20 @@ function Table.BuildData(columns, dataRows, options)
     table.insert(data.rows, headerRow)
   end
 
-  TableForEach(dataRows, function(row)
+  TableForEach(contextRows, function(row)
     ---@type LiqUI_TableDataRow
     local builtRow = {
       columns = {},
-      data = row.data,
+      context = row.context,
       backgroundColor = row.backgroundColor,
       onEnter = row.onEnter,
       onLeave = row.onLeave,
       onClick = row.onClick,
     }
     TableForEach(columns, function(column)
-      local cell = column.render and column.render(row.data) or { text = "" }
+      ---@type LiqUI_TableRenderArgs
+      local renderArgs = { context = row.context or {}, row = builtRow }
+      local cell = column.render and column.render(renderArgs) or { text = "" }
       table.insert(builtRow.columns, cell)
     end)
     table.insert(data.rows, builtRow)
@@ -84,6 +121,7 @@ function Table:New(config)
   end
   self.db.tables[config.name] = self.db.tables[config.name] or {}
   local db = self.db.tables[config.name]
+  db.hiddenColumns = db.hiddenColumns or {}
   local frameSuffix = self.name:gsub("[^%w]", "") .. config.name:gsub("[^%w]", "")
   ---@type LiqUI_TableFrame
   local frame = CreateFrame("Frame", "LiqUITable" .. frameSuffix) ---@diagnostic disable-line:assign-type-mismatch
@@ -113,7 +151,7 @@ function Table:New(config)
     sorting = {
       enabled = false,
       defaultOrder = "desc",
-      defaultCompare = function(_, _)
+      defaultCompare = function(args)
         return false
       end,
     },
@@ -274,7 +312,9 @@ function Table:New(config)
 
     local columnSort = state.columnId and state.direction and sortColumnIndex
     if not columnSort then
-      table.sort(dataRows, sorting.defaultCompare)
+      table.sort(dataRows, function(rowA, rowB)
+        return sorting.defaultCompare(sortCompareArgs(rowA, rowB))
+      end)
       for rowIndex = 1, #dataRows do
         rows[dataStart + rowIndex - 1] = dataRows[rowIndex]
       end
@@ -296,9 +336,9 @@ function Table:New(config)
     end
     table.sort(dataRows, function(rowA, rowB)
       if ascending then
-        return compare(rowA, rowB)
+        return compare(sortCompareArgs(rowA, rowB))
       end
-      return compare(rowB, rowA)
+      return compare(sortCompareArgs(rowB, rowA))
     end)
 
     for rowIndex = 1, #dataRows do
@@ -354,6 +394,14 @@ function Table:New(config)
     self:ValidateSortState()
     self:ApplySortToData()
     self:RenderTable()
+  end
+
+  ---Build and apply table data from column definitions and context rows.
+  ---@param columns LiqUI_TableDataColumn[]
+  ---@param contextRows LiqUI_TableDataRow[]
+  ---@param options LiqUI_TableBuildDataOptions?
+  function frame:Refresh(columns, contextRows, options)
+    self:SetData(Table.BuildData(columns, contextRows, options))
   end
 
   ---Set the row height

@@ -160,6 +160,42 @@ function Window:New(options)
     window:SetSize(w, h)
   end
 
+  ---Resize the body to fit a rendered table.
+  ---@param tableFrame LiqUI_TableFrame
+  ---@param options LiqUI_WindowFitBodyOptions?
+  ---@return number bodyWidth
+  ---@return number bodyHeight
+  function window:FitBodyToTable(tableFrame, options)
+    local bodyWidth, bodyHeight = tableFrame:GetSize()
+    if options then
+      if options.minWidth then
+        bodyWidth = math.max(bodyWidth, options.minWidth)
+      end
+      if options.maxBodyHeight then
+        bodyHeight = math.min(bodyHeight, options.maxBodyHeight)
+      end
+    end
+    window:SetBodySize(bodyWidth, bodyHeight)
+    return bodyWidth, bodyHeight
+  end
+
+  ---Show centered placeholder text over the body.
+  ---@param text string
+  function window:ShowBodyPlaceholder(text)
+    if not window.body then
+      return
+    end
+    local placeholder = Window:GetBodyPlaceholderText(window.body)
+    placeholder:SetText(text or "")
+    placeholder:Show()
+  end
+
+  function window:HideBodyPlaceholder()
+    if window.body and window.body.placeholderText then
+      window.body.placeholderText:Hide()
+    end
+  end
+
   if window.config.width and window.config.height then
     window:SetBodySize(window.config.width, window.config.height)
   end

@@ -32,6 +32,10 @@
 ---@field windowColor ColorTable?
 ---@field border boolean?
 
+---@class LiqUI_WindowFitBodyOptions
+---@field minWidth number?
+---@field maxBodyHeight number?
+
 ---@class LiqUI_WindowManager
 
 ---@class LiqUI_WindowOptions
