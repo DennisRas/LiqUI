@@ -35,11 +35,18 @@
 ---@field columns LiqUI_TableDataColumn[]?
 ---@field rows LiqUI_TableDataRow[]
 
+---@class LiqUI_TableBuildDataOptions
+---@field includeHeader boolean?
+
 ---@class LiqUI_TableDataColumn
 ---@field id string?
 ---@field headerText string?
 ---@field width number
----@field align string?
+---@field align "LEFT"|"CENTER"|"RIGHT"|nil
+---@field onEnter function?
+---@field onLeave function?
+---@field hideable boolean?
+---@field render fun(data: table): LiqUI_TableDataRowColumn?
 ---@field sorting LiqUI_TableColumnSorting?
 
 ---@class LiqUI_TableDataRow

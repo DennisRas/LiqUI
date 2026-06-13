@@ -15,6 +15,58 @@ local SetHighlightColor = LiqUI.Utils.SetHighlightColor
 local TableForEach = LiqUI.Utils.TableForEach
 local TableMergeConfig = LiqUI.Utils.TableMergeConfig
 
+---Assemble table data from column definitions and row stubs with optional `data`.
+---@param columns LiqUI_TableDataColumn[]
+---@param dataRows LiqUI_TableDataRow[]
+---@param options LiqUI_TableBuildDataOptions?
+---@return LiqUI_TableData
+function Table.BuildData(columns, dataRows, options)
+  local includeHeader = not options or options.includeHeader ~= false
+  ---@type LiqUI_TableData
+  local data = {
+    columns = columns,
+    rows = {},
+  }
+
+  if includeHeader then
+    ---@type LiqUI_TableDataRow
+    local headerRow = { columns = {} }
+    TableForEach(columns, function(column)
+      local headerText = column.headerText or ""
+      if NORMAL_FONT_COLOR then
+        headerText = NORMAL_FONT_COLOR:WrapTextInColorCode(headerText)
+      end
+      ---@type LiqUI_TableDataRowColumn
+      local cell = {
+        text = headerText,
+        onEnter = column.onEnter,
+        onLeave = column.onLeave,
+      }
+      table.insert(headerRow.columns, cell)
+    end)
+    table.insert(data.rows, headerRow)
+  end
+
+  TableForEach(dataRows, function(row)
+    ---@type LiqUI_TableDataRow
+    local builtRow = {
+      columns = {},
+      data = row.data,
+      backgroundColor = row.backgroundColor,
+      onEnter = row.onEnter,
+      onLeave = row.onLeave,
+      onClick = row.onClick,
+    }
+    TableForEach(columns, function(column)
+      local cell = column.render and column.render(row.data) or { text = "" }
+      table.insert(builtRow.columns, cell)
+    end)
+    table.insert(data.rows, builtRow)
+  end)
+
+  return data
+end
+
 ---@param instance LiqUI_Instance
 function Table:Embed(instance)
   instance.Table = LiqUI.BindManager(instance, self, { frames = {} })
