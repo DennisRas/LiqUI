@@ -8,19 +8,7 @@
 ## SavedVariables: LiqUIDB
 
 Libs/LibStub/LibStub.lua
-LiqUI.lua
-Types/Constants.lua
-Types/Window.lua
-Types/Table.lua
-Types/Scroll.lua
-Types/Logger.lua
-Types/Database.lua
-Types/Addon.lua
-Constants.lua
-Utils.lua
-Window.lua
-Table.lua
-Logger.lua
+LiqUI.xml
 
 #@debug@
 Debug/Gallery.lua
