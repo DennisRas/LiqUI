@@ -26,12 +26,12 @@ local function galleryData()
           index * 10,
           {
             data = flag,
-            onEnter = function(cellFrame)
+            onEnter = function(cellFrame, rowFrame, rowIndex, columnIndex, columnId, rowData, cellData)
               GameTooltip:SetOwner(cellFrame, "ANCHOR_RIGHT")
               GameTooltip:SetText(format("Extended cell on row %d", index), 1, 1, 1)
               GameTooltip:Show()
             end,
-            onLeave = function()
+            onLeave = function(cellFrame, rowFrame, rowIndex, columnIndex, columnId, rowData, cellData)
               GameTooltip:Hide()
             end,
           },

@@ -16,8 +16,7 @@ local TableFilter = LiqUI.Utils.TableFilter
 local TableForEach = LiqUI.Utils.TableForEach
 local TableMergeConfig = LiqUI.Utils.TableMergeConfig
 
-local defaultColumnWidth = LiqUI.Constants.layout.sizes.column
-local HEADER_ROW_INDEX = 0
+local HEADER_BACKGROUND_ALPHA = 0.3
 
 ---@param value table
 ---@return boolean
@@ -90,41 +89,6 @@ local function normalizeData(data)
   return normalized
 end
 
----@param frame Frame
----@param color ColorTable|nil
-local function applyBackgroundColor(frame, color)
-  if color then
-    SetBackgroundColor(frame, color.r, color.g, color.b, color.a)
-  else
-    SetBackgroundColor(frame, 0, 0, 0, 0)
-  end
-end
-
----@param tableFrame LiqUI_TableFrame
----@return LiqUI_TableConfigColumn[]
-local function activeColumns(tableFrame)
-  local columns = tableFrame.config.columns
-  if not columns then
-    return {}
-  end
-  if tableFrame.db and tableFrame.db.hiddenColumns then
-    return Table.FilterColumns(columns, tableFrame.db.hiddenColumns)
-  end
-  return columns
-end
-
----@param columns LiqUI_TableConfigColumn[]
----@param hiddenColumns table<string, boolean>?
----@return LiqUI_TableConfigColumn[]
-function Table.FilterColumns(columns, hiddenColumns)
-  if not hiddenColumns then
-    return columns
-  end
-  return TableFilter(columns, function(column)
-    return column.id and not hiddenColumns[column.id]
-  end)
-end
-
 ---@param columns LiqUI_TableConfigColumn[]
 ---@param sorting LiqUI_TableConfigSorting|nil
 local function validateSortingColumns(columns, sorting)
@@ -168,6 +132,7 @@ function Table:New(config)
       enabled = true,
       sticky = false,
       height = LiqUI.Constants.layout.sizes.header,
+      fontObject = "GameFontNormalSmall",
     },
     rowStyle = {
       height = LiqUI.Constants.layout.sizes.row,
@@ -177,7 +142,7 @@ function Table:New(config)
     cellStyle = {
       padding = LiqUI.Constants.layout.sizes.padding,
       highlight = false,
-      fontObject = "GameFontHighlight",
+      fontObject = "GameFontHighlightSmall",
     },
     sorting = {
       enabled = false,
@@ -212,7 +177,7 @@ function Table:New(config)
   end
 
   frame.data = {}
-  frame.rows = {}
+  frame.rowFrames = {}
   ---@type LiqUI_TableSortState
   frame.sortState = { columnId = nil, direction = nil }
   frame.db = db
@@ -230,19 +195,29 @@ function Table:New(config)
     end
   end
 
-  ---@param rowIndex integer
-  ---@return boolean
-  local function isHeaderRow(rowIndex)
-    return rowIndex == HEADER_ROW_INDEX
+  ---@return LiqUI_TableConfigColumn[]
+  function frame:GetActiveColumns()
+    ---@type LiqUI_TableConfigColumn[]
+    local result = {}
+    local columns = self.config.columns or {}
+    local hiddenColumns = self.db and self.db.hiddenColumns
+    TableForEach(columns, function(column, columnIndex)
+      if column.id and hiddenColumns and hiddenColumns[column.id] then
+        return
+      end
+      column.dataIndex = columnIndex
+      table.insert(result, column)
+    end)
+    return result
   end
 
   ---@param columnId string|nil
   ---@return number|nil
-  local function columnIndexForId(columnId)
+  function frame:getColumnById(columnId)
     if not columnId then
       return nil
     end
-    local columns = activeColumns(frame)
+    local columns = self:GetActiveColumns()
     for columnIndex, column in ipairs(columns) do
       if column.id == columnId then
         return columnIndex
@@ -251,23 +226,23 @@ function Table:New(config)
     return nil
   end
 
-  local function setSortStateToDefault()
-    local state = frame.sortState
+  function frame:setSortStateToDefault()
+    local state = self.sortState
     state.columnId = nil
     state.direction = nil
   end
 
-  local function validateSortState()
-    local sorting = frame.config.sorting
+  function frame:validateSortState()
+    local sorting = self.config.sorting
     if not sorting or not sorting.enabled then
       return
     end
-    local state = frame.sortState
+    local state = self.sortState
     if not state then
       return
     end
-    if state.columnId and not columnIndexForId(state.columnId) then
-      setSortStateToDefault()
+    if state.columnId and not self:getColumnById(state.columnId) then
+      self:setSortStateToDefault()
       if sorting.onStateChanged then
         sorting.onStateChanged(state)
       end
@@ -282,98 +257,32 @@ function Table:New(config)
     end
   end
 
-  do
-    local sorting = frame.config.sorting
-    local saved = sorting and sorting.savedState
-    if sorting and sorting.enabled and saved and type(saved.columnId) == "string" and saved.columnId ~= "" then
-      frame.sortState.columnId = saved.columnId
-      if saved.direction == "asc" or saved.direction == "desc" then
-        frame.sortState.direction = saved.direction
-      else
-        frame.sortState.direction = (sorting.defaultOrder == "asc") and "asc" or "desc"
-      end
-    else
-      setSortStateToDefault()
-    end
-  end
-
-  local function notifySortStateChanged()
-    local sorting = frame.config.sorting
+  function frame:onSortStateChanged()
+    local sorting = self.config.sorting
     if sorting and sorting.onStateChanged then
-      sorting.onStateChanged(frame.sortState)
+      sorting.onStateChanged(self.sortState)
     end
   end
 
-  local rowHeight = frame.config.rowStyle.height or LiqUI.Constants.layout.sizes.row
-  frame.scrollArea = CreateScrollArea(frame, {
-    name = "$parentScrollArea",
-    vertical = true,
-    horizontal = false,
-    wheelPanExtent = rowHeight,
-  })
-
-  local function scrollToTopAfterHeaderSort()
+  function frame:scrollToTop()
     C_Timer.After(0, function()
-      frame:ScrollToTop()
+      self:ScrollToTop()
     end)
   end
 
-  ---@param rowIndex integer
-  ---@return LiqUI_TableRowFrame
-  local function createRow(rowIndex)
-    local parent = frame
-    if not isHeaderRow(rowIndex) then
-      parent = frame.scrollArea.content
-    end
-    ---@type LiqUI_TableRowFrame
-    local rowFrame = CreateFrame("Frame", "$parentRow" .. rowIndex, parent)
-    rowFrame.cells = {}
-    BindScrollBoxMouseWheel(rowFrame, frame.scrollArea:GetWheelScrollBox())
-    frame.rows[rowIndex] = rowFrame
-    return rowFrame
-  end
-
-  ---@param rowFrame LiqUI_TableRowFrame
-  ---@param name string
-  ---@param sortingEnabled boolean
-  ---@return LiqUI_TableCellFrame
-  local function createCell(rowFrame, name, sortingEnabled)
-    ---@type LiqUI_TableCellFrame
-    local cellFrame = CreateFrame("Button", name, rowFrame)
-    cellFrame.label = cellFrame:CreateFontString("$parentLabel", "OVERLAY")
-    local cellStyle = frame.config.cellStyle
-    cellFrame.label:SetFontObject((cellStyle and cellStyle.fontObject) or "GameFontHighlight")
-    cellFrame.label:SetWordWrap(false)
-    cellFrame.tableFrame = frame
-    BindScrollBoxMouseWheel(cellFrame, frame.scrollArea:GetWheelScrollBox())
-    if sortingEnabled then
-      cellFrame:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    end
-    cellFrame:SetScript("OnEnter", function(self)
-      self.tableFrame:OnCellEnter(self)
-    end)
-    cellFrame:SetScript("OnLeave", function(self)
-      self.tableFrame:OnCellLeave(self)
-    end)
-    cellFrame:SetScript("OnClick", function(self, button)
-      self.tableFrame:OnCellClick(self, button)
-    end)
-    return cellFrame
-  end
-
-  local function applySort()
-    local sorting = frame.config.sorting
+  function frame:applySort()
+    local sorting = self.config.sorting
     if not sorting or not sorting.enabled then
       return
     end
 
-    local data = frame.data
+    local data = self.data
     if not data or #data == 0 then
       return
     end
 
-    local state = frame.sortState
-    local sortColumnIndex = columnIndexForId(state.columnId)
+    local state = self.sortState
+    local sortColumnIndex = self:getColumnById(state.columnId)
     if state.columnId and state.direction and not sortColumnIndex then
       return
     end
@@ -390,7 +299,7 @@ function Table:New(config)
       end)
     else
       local ascending = state.direction == "asc"
-      local columns = activeColumns(frame)
+      local columns = self:GetActiveColumns()
       local columnConfig = columns[sortColumnIndex]
       if not columnConfig or not columnConfig.sorting then
         error(format("LiqUI Table: column \"%s\" must define sorting", tostring(columnConfig and columnConfig.id)), 2)
@@ -419,381 +328,291 @@ function Table:New(config)
     frame.data = sortedData
   end
 
-  local function renderTable()
-    local config = frame.config
-    local columns = activeColumns(frame)
-    local data = frame.data or {}
-    local headerConfig = config.header
-    local rowStyle = config.rowStyle
-    local cellStyle = config.cellStyle
-    local defaultRowHeight = rowStyle.height or LiqUI.Constants.layout.sizes.row
-    local headerHeight = headerConfig.height or LiqUI.Constants.layout.sizes.header
-    local padding = (cellStyle and cellStyle.padding) or LiqUI.Constants.layout.sizes.padding
-    local sortingConfig = config.sorting
-
-    local contentWidth = 0
-    for columnIndex = 1, #columns do
-      contentWidth = contentWidth + (columns[columnIndex].width or defaultColumnWidth)
+  ---@param shouldSort boolean
+  function frame:runTable(shouldSort)
+    if shouldSort then
+      self:validateSortState()
+      self:applySort()
     end
+    self:Render()
+  end
 
-    TableForEach(frame.rows, function(rowFrame)
-      rowFrame:Hide()
+  function frame:Render()
+    local sortState = self.sortState
+    local headerConfig = self.config.header
+    local rowStyle = self.config.rowStyle
+    local cellStyle = self.config.cellStyle
+    local sortingConfig = self.config.sorting
+    local sortingEnabled = sortingConfig and sortingConfig.enabled
+    local activeColumns = self:GetActiveColumns()
+
+    local headerEnabled = headerConfig.enabled
+    local headerSticky = headerConfig.sticky
+    local defaultRowHeight = rowStyle.height or LiqUI.Constants.layout.sizes.row
+    local defaultColumnWidth = LiqUI.Constants.layout.sizes.column
+    local headerHeight = headerConfig.height or LiqUI.Constants.layout.sizes.header
+    local defaultPadding = (cellStyle and cellStyle.padding) or LiqUI.Constants.layout.sizes.padding
+    local defaultHeaderFont = headerConfig.fontObject or "GameFontNormalSmall"
+    local defaultCellFont = cellStyle and cellStyle.fontObject or "GameFontHighlightSmall"
+
+    local layoutWidth = 0
+    TableForEach(activeColumns, function(column)
+      layoutWidth = layoutWidth + (column.width or defaultColumnWidth)
     end)
 
-    local offsetY = 0
-    local scrollContentHeight = 0
-    if headerConfig.enabled and not headerConfig.sticky then
-      scrollContentHeight = headerHeight
+    local scrollHeight = 0
+    if headerEnabled and not headerSticky then
+      scrollHeight = headerHeight
     end
+    local rowOffsetY = scrollHeight
+    local columnOffsetX = 0
 
-    local scrollArea = frame.scrollArea
+    local scrollArea = self.scrollArea
+    local headerRowFrame = frame.headerRowFrame
+
     scrollArea:SetParent(frame)
-    if headerConfig.enabled and headerConfig.sticky then
-      scrollArea:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -headerHeight)
-      scrollArea:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
-    else
-      scrollArea:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
-      scrollArea:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
-    end
+    scrollArea:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+    scrollArea:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
 
-    if headerConfig.enabled then
-      local rowFrame = frame.rows[HEADER_ROW_INDEX]
-      if not rowFrame then
-        rowFrame = createRow(HEADER_ROW_INDEX)
+    if headerEnabled then
+      if not headerRowFrame then
+        headerRowFrame = CreateFrame("Frame", "$parentHeaderRow", frame)
+        headerRowFrame.cells = {}
+        BindScrollBoxMouseWheel(headerRowFrame, scrollArea:GetWheelScrollBox())
+        frame.headerRowFrame = headerRowFrame
       end
-      rowFrame:SetHeight(headerHeight)
-      rowFrame:SetWidth(contentWidth)
-      rowFrame:Show()
 
-      if headerConfig.sticky then
-        rowFrame:SetParent(frame)
-        rowFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
-        rowFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
-        rowFrame:SetFrameLevel(scrollArea.verticalScrollBar:GetFrameLevel() + 2)
+      if headerSticky then
+        headerRowFrame:SetParent(frame)
+        headerRowFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+        headerRowFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
+        headerRowFrame:SetFrameLevel(scrollArea.verticalScrollBar:GetFrameLevel() + 2)
+        scrollArea:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -headerHeight)
+        scrollArea:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
       else
-        rowFrame:SetParent(scrollArea.content)
-        rowFrame:SetPoint("TOPLEFT", scrollArea.content, "TOPLEFT", 0, 0)
-        rowFrame:SetFrameLevel(scrollArea.content:GetFrameLevel() + 1)
+        headerRowFrame:SetParent(scrollArea.content)
+        headerRowFrame:SetPoint("TOPLEFT", scrollArea.content, "TOPLEFT", 0, 0)
+        headerRowFrame:SetPoint("TOPRIGHT", scrollArea.content, "TOPRIGHT", 0, 0)
+        headerRowFrame:SetFrameLevel(scrollArea.content:GetFrameLevel() + 1)
       end
-      SetBackgroundColor(rowFrame, 0, 0, 0, 0.3)
 
-      local offsetX = 0
-      for columnIndex = 1, #columns do
-        local columnConfig = columns[columnIndex]
-        local columnWidth = columnConfig.width or defaultColumnWidth
-        local columnTextAlign = columnConfig.align or "LEFT"
-        local sortingEnabled = sortingConfig and sortingConfig.enabled
-        local columnSortable = sortingEnabled and columnConfig.sorting and columnConfig.sorting.enabled
+      SetBackgroundColor(headerRowFrame, 0, 0, 0, HEADER_BACKGROUND_ALPHA)
+      headerRowFrame:SetHeight(headerHeight)
+      headerRowFrame:Show()
 
-        local cellFrame = rowFrame.cells[columnIndex]
-        if not cellFrame then
-          cellFrame = createCell(rowFrame, "$parentCell" .. columnIndex, columnSortable == true)
-          rowFrame.cells[columnIndex] = cellFrame
+      columnOffsetX = 0
+      TableForEach(headerRowFrame.cells, function(headerCellFrame) headerCellFrame:Hide() end)
+      TableForEach(activeColumns, function(column, columnIndex)
+        local columnWidth = column.width or defaultColumnWidth
+        local columnAlign = column.align or "LEFT"
+        local columnSortable = sortingEnabled and column.sorting and column.sorting.enabled
+        local sortHighlight = columnSortable and sortState.columnId == column.id and sortState.direction ~= nil
+
+        local headerCellFrame = headerRowFrame.cells[columnIndex]
+        if not headerCellFrame then
+          headerCellFrame = CreateFrame("Button", "$parentCell" .. columnIndex, headerRowFrame)
+          headerCellFrame:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+          headerCellFrame.label = headerCellFrame:CreateFontString("$parentLabel", "OVERLAY")
+          headerCellFrame.label:SetWordWrap(false)
+          headerCellFrame.tableFrame = frame
+          BindScrollBoxMouseWheel(headerCellFrame, scrollArea:GetWheelScrollBox())
+          headerRowFrame.cells[columnIndex] = headerCellFrame
         end
 
-        cellFrame.rowIndex = HEADER_ROW_INDEX
-        cellFrame.columnIndex = columnIndex
-        cellFrame.columnId = columnConfig.id
-
-        cellFrame:SetPoint("TOPLEFT", rowFrame, "TOPLEFT", offsetX, 0)
-        cellFrame:SetPoint("BOTTOMLEFT", rowFrame, "BOTTOMLEFT", offsetX, 0)
-        cellFrame:SetWidth(columnWidth)
-        cellFrame:SetHeight(headerHeight)
-        cellFrame.label:SetJustifyH(columnTextAlign)
-        cellFrame.label:SetPoint("TOPLEFT", cellFrame, "TOPLEFT", padding, -padding)
-        cellFrame.label:SetPoint("BOTTOMRIGHT", cellFrame, "BOTTOMRIGHT", -padding, padding)
-        cellFrame.label:SetText(columnConfig.headerText or "")
-        applyBackgroundColor(cellFrame, nil)
-        cellFrame:Show()
+        SetBackgroundColor(headerCellFrame, 0, 0, 0, 0)
+        headerCellFrame:SetPoint("TOPLEFT", headerRowFrame, "TOPLEFT", columnOffsetX, 0)
+        headerCellFrame:SetPoint("BOTTOMLEFT", headerRowFrame, "BOTTOMLEFT", columnOffsetX, 0)
+        headerCellFrame:SetWidth(columnWidth)
+        headerCellFrame:Show()
+        headerCellFrame.label:SetFontObject(defaultHeaderFont)
+        headerCellFrame.label:SetJustifyH(columnAlign)
+        headerCellFrame.label:SetPoint("TOPLEFT", headerCellFrame, "TOPLEFT", defaultPadding, -defaultPadding)
+        headerCellFrame.label:SetPoint("BOTTOMRIGHT", headerCellFrame, "BOTTOMRIGHT", -defaultPadding, defaultPadding)
+        headerCellFrame.label:SetText(column.headerText or "")
+        columnOffsetX = columnOffsetX + columnWidth
 
         if columnSortable then
-          local state = frame.sortState
-          local showSortHighlight = state.columnId == columnConfig.id and state.direction ~= nil
-          if showSortHighlight then
-            SetHighlightColor(cellFrame, 1, 1, 1, 0.03)
+          if sortHighlight then
+            SetHighlightColor(headerCellFrame, 1, 1, 1, 0.03)
           else
-            SetHighlightColor(cellFrame, 1, 1, 1, 0)
+            SetHighlightColor(headerCellFrame, 1, 1, 1, 0)
           end
         end
 
-        offsetX = offsetX + columnWidth
-      end
+        headerCellFrame:SetScript("OnEnter", function()
+          if column.onEnter then
+            column.onEnter(headerCellFrame, columnIndex, column.id, column)
+          end
+          if columnSortable then
+            if not GameTooltip:IsShown() then
+              GameTooltip:SetOwner(headerCellFrame, "ANCHOR_RIGHT")
+              GameTooltip:SetText(column.headerText or "", 1, 1, 1)
+            else
+            end
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("<Click to Sort>", GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
+            GameTooltip:AddLine("<Right Click to Reset>", GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
+            GameTooltip:Show()
+          end
+        end)
 
-      for columnIndex = #columns + 1, #rowFrame.cells do
-        local cellFrame = rowFrame.cells[columnIndex]
-        if cellFrame then
-          cellFrame:Hide()
-        end
-      end
-    elseif frame.rows[HEADER_ROW_INDEX] then
-      frame.rows[HEADER_ROW_INDEX]:Hide()
+        headerCellFrame:SetScript("OnLeave", function()
+          if column.onLeave then
+            column.onLeave(headerCellFrame, columnIndex, column.id, column)
+          end
+          if columnSortable and GameTooltip:IsShown() then
+            GameTooltip:Hide()
+          end
+        end)
+
+        headerCellFrame:SetScript("OnClick", function(_, button)
+          if columnSortable and column.id then
+            if button == "RightButton" then
+              self:setSortStateToDefault()
+              self:runTable(true)
+              self:scrollToTop()
+              self:onSortStateChanged()
+              return
+            end
+
+            if sortState.columnId == column.id then
+              sortState.direction = (sortState.direction == "asc") and "desc" or "asc"
+            else
+              sortState.columnId = column.id
+              sortState.direction = (sortingConfig and sortingConfig.defaultOrder == "asc") and "asc" or "desc"
+            end
+            self:runTable(true)
+            self:scrollToTop()
+            self:onSortStateChanged()
+          end
+        end)
+      end)
+    elseif headerRowFrame then
+      headerRowFrame:Hide()
     end
 
-    local bodyOffsetY = scrollContentHeight
-    for rowIndex = 1, #data do
-      local row = data[rowIndex]
-      local rowHeight = row.height or defaultRowHeight
+    TableForEach(self.rowFrames, function(rowFrame) rowFrame:Hide() end)
+    TableForEach(self.data, function(rowData, rowIndex)
+      local rowHeight = rowData.height or defaultRowHeight
+      local rowFrame = self.rowFrames[rowIndex]
 
-      local rowFrame = frame.rows[rowIndex]
       if not rowFrame then
-        rowFrame = createRow(rowIndex)
+        ---@type LiqUI_TableRowFrame
+        rowFrame = CreateFrame("Frame", "$parentRow" .. rowIndex, scrollArea.content)
+        rowFrame.cells = {}
+        BindScrollBoxMouseWheel(rowFrame, scrollArea:GetWheelScrollBox())
+        self.rowFrames[rowIndex] = rowFrame
       end
 
-      rowFrame:SetParent(scrollArea.content)
-      rowFrame:SetPoint("TOPLEFT", scrollArea.content, "TOPLEFT", 0, -bodyOffsetY)
-      rowFrame:SetWidth(contentWidth)
-      rowFrame:SetHeight(rowHeight)
-      rowFrame:Show()
-
-      if row.backgroundColor then
-        applyBackgroundColor(rowFrame, row.backgroundColor)
+      if rowData.backgroundColor then
+        SetBackgroundColor(rowFrame, rowData.backgroundColor)
       elseif rowStyle.striped and rowIndex % 2 == 1 then
         SetBackgroundColor(rowFrame, 1, 1, 1, 0.02)
       else
-        applyBackgroundColor(rowFrame, nil)
+        SetBackgroundColor(rowFrame, 0, 0, 0, 0)
       end
 
-      local offsetX = 0
-      for columnIndex = 1, #columns do
-        local columnConfig = columns[columnIndex]
-        local columnWidth = columnConfig.width or defaultColumnWidth
-        local columnTextAlign = columnConfig.align or "LEFT"
-        local cell = row.data[columnIndex]
-        local displayText = tostring(cell and cell.data or "")
-        if columnConfig.render and cell then
-          displayText = tostring(columnConfig.render(cell, row, rowIndex) or "")
+      rowFrame:SetParent(scrollArea.content)
+      rowFrame:SetPoint("TOPLEFT", scrollArea.content, "TOPLEFT", 0, -rowOffsetY)
+      rowFrame:SetPoint("TOPRIGHT", scrollArea.content, "TOPRIGHT", 0, -rowOffsetY)
+      rowFrame:SetFrameLevel(scrollArea.content:GetFrameLevel() + 1)
+      rowFrame:SetHeight(rowHeight)
+      rowFrame:Show()
+      rowOffsetY = rowOffsetY + rowHeight
+      scrollHeight = scrollHeight + rowHeight
+
+      columnOffsetX = 0
+      TableForEach(rowFrame.cells, function(bodyCellFrame) bodyCellFrame:Hide() end)
+      TableForEach(activeColumns, function(column, columnIndex)
+        local columnWidth = column.width or defaultColumnWidth
+        local columnAlign = column.align or "LEFT"
+        local cellData = rowData.data[column.dataIndex]
+        local displayText = tostring(cellData and cellData.data or "")
+
+        if column.render then
+          local formatted = column.render(cellData, rowData, rowIndex)
+          if formatted ~= nil then
+            displayText = tostring(formatted)
+          end
         end
 
-        local cellFrame = rowFrame.cells[columnIndex]
-        if not cellFrame then
-          cellFrame = createCell(rowFrame, "$parentCell" .. columnIndex, false)
-          rowFrame.cells[columnIndex] = cellFrame
+        local bodyCellFrame = rowFrame.cells[columnIndex]
+        if not bodyCellFrame then
+          ---@type LiqUI_TableCellFrame
+          bodyCellFrame = CreateFrame("Button", "$parentCell" .. columnIndex, rowFrame)
+          bodyCellFrame.label = bodyCellFrame:CreateFontString("$parentLabel", "OVERLAY")
+          bodyCellFrame.label:SetWordWrap(false)
+          bodyCellFrame.tableFrame = frame
+          BindScrollBoxMouseWheel(bodyCellFrame, scrollArea:GetWheelScrollBox())
+          rowFrame.cells[columnIndex] = bodyCellFrame
         end
 
-        cellFrame.rowIndex = rowIndex
-        cellFrame.columnIndex = columnIndex
-        cellFrame.columnId = columnConfig.id
+        bodyCellFrame:SetPoint("TOPLEFT", rowFrame, "TOPLEFT", columnOffsetX, 0)
+        bodyCellFrame:SetPoint("BOTTOMLEFT", rowFrame, "BOTTOMLEFT", columnOffsetX, 0)
+        bodyCellFrame:SetWidth(columnWidth)
+        bodyCellFrame.label:SetFontObject(defaultCellFont)
+        bodyCellFrame.label:SetText(displayText)
+        bodyCellFrame.label:SetJustifyH(columnAlign)
+        bodyCellFrame.label:SetPoint("TOPLEFT", bodyCellFrame, "TOPLEFT", defaultPadding, -defaultPadding)
+        bodyCellFrame.label:SetPoint("BOTTOMRIGHT", bodyCellFrame, "BOTTOMRIGHT", -defaultPadding, defaultPadding)
 
-        cellFrame:SetPoint("TOPLEFT", rowFrame, "TOPLEFT", offsetX, 0)
-        cellFrame:SetPoint("BOTTOMLEFT", rowFrame, "BOTTOMLEFT", offsetX, 0)
-        cellFrame:SetWidth(columnWidth)
-        cellFrame:SetHeight(rowHeight)
-        cellFrame.label:SetJustifyH(columnTextAlign)
-        cellFrame.label:SetPoint("TOPLEFT", cellFrame, "TOPLEFT", padding, -padding)
-        cellFrame.label:SetPoint("BOTTOMRIGHT", cellFrame, "BOTTOMRIGHT", -padding, padding)
-        cellFrame.label:SetText(displayText)
-        if cell and cell.backgroundColor then
-          applyBackgroundColor(cellFrame, cell.backgroundColor)
+        if cellData and cellData.backgroundColor then
+          SetBackgroundColor(bodyCellFrame, cellData.backgroundColor)
         else
-          applyBackgroundColor(cellFrame, nil)
+          SetBackgroundColor(bodyCellFrame, 0, 0, 0, 0)
         end
-        cellFrame:Show()
 
-        offsetX = offsetX + columnWidth
-      end
+        bodyCellFrame:SetScript("OnEnter", function()
+          if rowStyle.highlight then
+            SetHighlightColor(rowFrame, 1, 1, 1, 0.05)
+          end
+          if cellStyle and cellStyle.highlight then
+            SetHighlightColor(bodyCellFrame, 1, 1, 1, 0.05)
+          end
+          if rowData.onEnter then
+            rowData.onEnter(bodyCellFrame, rowFrame, rowIndex, columnIndex, column.id, rowData, cellData)
+          end
+          if cellData and cellData.onEnter then
+            cellData.onEnter(bodyCellFrame, rowFrame, rowIndex, columnIndex, column.id, rowData, cellData)
+          end
+        end)
+        bodyCellFrame:SetScript("OnLeave", function()
+          if rowStyle.highlight then
+            SetHighlightColor(rowFrame, 1, 1, 1, 0)
+          end
+          if cellStyle and cellStyle.highlight then
+            SetHighlightColor(bodyCellFrame, 1, 1, 1, 0)
+          end
+          if rowData.onLeave then
+            rowData.onLeave(bodyCellFrame, rowFrame, rowIndex, columnIndex, column.id, rowData, cellData)
+          end
+          if cellData and cellData.onLeave then
+            cellData.onLeave(bodyCellFrame, rowFrame, rowIndex, columnIndex, column.id, rowData, cellData)
+          end
+        end)
+        bodyCellFrame:SetScript("OnClick", function(_, button)
+          if rowData.onClick then
+            rowData.onClick(bodyCellFrame, rowFrame, rowIndex, columnIndex, column.id, rowData, cellData, button)
+          end
+          if cellData and cellData.onClick then
+            cellData.onClick(bodyCellFrame, rowFrame, rowIndex, columnIndex, column.id, rowData, cellData, button)
+          end
+        end)
 
-      for columnIndex = #columns + 1, #rowFrame.cells do
-        local cellFrame = rowFrame.cells[columnIndex]
-        if cellFrame then
-          cellFrame:Hide()
-        end
-      end
+        bodyCellFrame:Show()
+        columnOffsetX = columnOffsetX + columnWidth
+      end)
+    end)
 
-      bodyOffsetY = bodyOffsetY + rowHeight
-      scrollContentHeight = scrollContentHeight + rowHeight
-    end
-
-    for rowIndex = #data + 1, #frame.rows do
-      if not isHeaderRow(rowIndex) then
-        local rowFrame = frame.rows[rowIndex]
-        if rowFrame then
-          rowFrame:Hide()
-        end
-      end
-    end
-
-    local shownHeight = scrollContentHeight
-    if headerConfig.enabled and headerConfig.sticky then
+    local shownHeight = scrollHeight
+    if headerEnabled and headerSticky then
       shownHeight = shownHeight + headerHeight
     end
 
-    frame.layoutSize.shownWidth = contentWidth
-    frame.layoutSize.shownHeight = shownHeight
+    self.layoutSize.shownWidth = layoutWidth
+    self.layoutSize.shownHeight = shownHeight
 
-    scrollArea:UpdateLayout(contentWidth, scrollContentHeight)
-  end
-
-  ---@param shouldSort boolean
-  local function runTable(shouldSort)
-    if shouldSort then
-      validateSortState()
-      applySort()
-    end
-    renderTable()
-  end
-
-  ---@param columnId string
-  ---@param button string|nil
-  function frame:OnHeaderColumnClick(columnId, button)
-    if type(columnId) ~= "string" or columnId == "" then
-      return
-    end
-    local state = self.sortState
-
-    if button == "RightButton" then
-      setSortStateToDefault()
-      runTable(true)
-      scrollToTopAfterHeaderSort()
-      notifySortStateChanged()
-      return
-    end
-
-    local sortingConfig = self.config.sorting
-    if state.columnId == columnId then
-      state.direction = (state.direction == "asc") and "desc" or "asc"
-    else
-      state.columnId = columnId
-      state.direction = (sortingConfig and sortingConfig.defaultOrder == "asc") and "asc" or "desc"
-    end
-    runTable(true)
-    scrollToTopAfterHeaderSort()
-    notifySortStateChanged()
-  end
-
-  ---@param cellFrame LiqUI_TableCellFrame
-  function frame:OnCellEnter(cellFrame)
-    local config = self.config
-    local rowIndex = cellFrame.rowIndex
-    local columnIndex = cellFrame.columnIndex
-    local columns = activeColumns(self)
-    local columnConfig = columns[columnIndex]
-    if not columnConfig then
-      return
-    end
-
-    if isHeaderRow(rowIndex) then
-      local sortingConfig = config.sorting
-      local columnSortable = sortingConfig and sortingConfig.enabled
-        and columnConfig.sorting and columnConfig.sorting.enabled
-      if columnSortable then
-        GameTooltip:SetOwner(cellFrame, "ANCHOR_RIGHT")
-        GameTooltip:SetText(columnConfig.headerText or "", 1, 1, 1)
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("<Click to Sort>", GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
-        GameTooltip:AddLine("<Right Click to Reset>", GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
-        GameTooltip:Show()
-      end
-      if columnConfig.onEnter then
-        columnConfig.onEnter(cellFrame, columnIndex, columnConfig.id, columnConfig)
-      end
-      return
-    end
-
-    local row = self.data[rowIndex]
-    if not row then
-      return
-    end
-    local cell = row.data[columnIndex]
-
-    if config.rowStyle.highlight then
-      local rowFrame = self.rows[rowIndex]
-      if rowFrame then
-        SetHighlightColor(rowFrame, 1, 1, 1, 0.05)
-      end
-    end
-    local cellStyle = config.cellStyle
-    if cellStyle and cellStyle.highlight then
-      SetHighlightColor(cellFrame, 1, 1, 1, 0.05)
-    end
-    if row.onEnter then
-      row.onEnter(cellFrame)
-    end
-    if cell and cell.onEnter then
-      cell.onEnter(cellFrame, rowIndex, columnIndex, cellFrame.columnId, row)
-    end
-  end
-
-  ---@param cellFrame LiqUI_TableCellFrame
-  function frame:OnCellLeave(cellFrame)
-    local config = self.config
-    local rowIndex = cellFrame.rowIndex
-    local columnIndex = cellFrame.columnIndex
-    local columns = activeColumns(self)
-    local columnConfig = columns[columnIndex]
-    if not columnConfig then
-      return
-    end
-
-    if isHeaderRow(rowIndex) then
-      local sortingConfig = config.sorting
-      local columnSortable = sortingConfig and sortingConfig.enabled
-        and columnConfig.sorting and columnConfig.sorting.enabled
-      if columnSortable or columnConfig.onEnter then
-        GameTooltip:Hide()
-      end
-      if columnConfig.onLeave then
-        columnConfig.onLeave(cellFrame, columnIndex, columnConfig.id, columnConfig)
-      end
-      return
-    end
-
-    local row = self.data[rowIndex]
-    if not row then
-      return
-    end
-    local cell = row.data[columnIndex]
-
-    if config.rowStyle.highlight then
-      local rowFrame = self.rows[rowIndex]
-      if rowFrame then
-        SetHighlightColor(rowFrame, 1, 1, 1, 0)
-      end
-    end
-    local cellStyle = config.cellStyle
-    if cellStyle and cellStyle.highlight then
-      SetHighlightColor(cellFrame, 1, 1, 1, 0)
-    end
-    if row.onLeave then
-      row.onLeave(cellFrame)
-    end
-    if cell and cell.onLeave then
-      cell.onLeave(cellFrame, rowIndex, columnIndex, cellFrame.columnId, row)
-    end
-  end
-
-  ---@param cellFrame LiqUI_TableCellFrame
-  ---@param button string
-  function frame:OnCellClick(cellFrame, button)
-    local rowIndex = cellFrame.rowIndex
-    local columnIndex = cellFrame.columnIndex
-    local columns = activeColumns(self)
-    local columnConfig = columns[columnIndex]
-    if not columnConfig then
-      return
-    end
-
-    if isHeaderRow(rowIndex) then
-      local sortingConfig = self.config.sorting
-      local columnSortable = sortingConfig and sortingConfig.enabled
-        and columnConfig.sorting and columnConfig.sorting.enabled
-      if columnSortable and columnConfig.id then
-        self:OnHeaderColumnClick(columnConfig.id, button)
-      end
-      return
-    end
-
-    local row = self.data[rowIndex]
-    if not row then
-      return
-    end
-    local cell = row.data[columnIndex]
-
-    if row.onClick then
-      row.onClick(cellFrame, button)
-    end
-    if cell and cell.onClick then
-      cell.onClick(cellFrame, button, rowIndex, columnIndex, cellFrame.columnId, row)
-    end
+    scrollArea:UpdateLayout(layoutWidth, scrollHeight)
   end
 
   function frame:ScrollToTop()
@@ -820,7 +639,7 @@ function Table:New(config)
     end
     validateSortingColumns(columns, self.config.sorting)
     self.data = normalizeData(data)
-    runTable(true)
+    self:runTable(true)
   end
 
   ---@param columns LiqUI_TableConfigColumn[]
@@ -830,7 +649,7 @@ function Table:New(config)
     end
     validateSortingColumns(columns, self.config.sorting)
     self.config.columns = columns
-    runTable(true)
+    self:runTable(true)
   end
 
   ---@param columnId string
@@ -845,7 +664,7 @@ function Table:New(config)
     else
       self.db.hiddenColumns[columnId] = nil
     end
-    runTable(true)
+    self:runTable(true)
   end
 
   ---@return LiqUI_TableSortState
@@ -860,8 +679,8 @@ function Table:New(config)
     local state = self.sortState
     state.columnId = columnId
     state.direction = direction
-    runTable(true)
-    notifySortStateChanged()
+    self:runTable(true)
+    self:onSortStateChanged()
   end
 
   ---@param height number
@@ -870,7 +689,7 @@ function Table:New(config)
     if self.scrollArea then
       self.scrollArea:SetWheelPanExtent(height)
     end
-    runTable(false)
+    self:runTable(false)
   end
 
   ---@return number width
@@ -880,11 +699,31 @@ function Table:New(config)
     return layoutSize.shownWidth, layoutSize.shownHeight
   end
 
+  local sorting = frame.config.sorting
+  local saved = sorting and sorting.savedState
+  if sorting and sorting.enabled and saved and type(saved.columnId) == "string" and saved.columnId ~= "" then
+    frame.sortState.columnId = saved.columnId
+    if saved.direction == "asc" or saved.direction == "desc" then
+      frame.sortState.direction = saved.direction
+    else
+      frame.sortState.direction = (sorting.defaultOrder == "asc") and "asc" or "desc"
+    end
+  else
+    frame:setSortStateToDefault()
+  end
+
+  frame.scrollArea = CreateScrollArea(frame, {
+    name = "$parentScrollArea",
+    vertical = true,
+    horizontal = false,
+    wheelPanExtent = frame.config.rowStyle.height or LiqUI.Constants.layout.sizes.row,
+  })
+
   frame.scrollArea:HookScript("OnSizeChanged", function()
-    renderTable()
+    frame:Render()
   end)
 
-  runTable(false)
+  frame:runTable(false)
   table.insert(self.frames, frame)
   return frame
 end

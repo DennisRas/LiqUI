@@ -4,7 +4,7 @@
 ---@field tooltipTitle string
 ---@field tooltipDescription string
 ---@field onClick function?
----@field setupMenu fun(window: LiqUI_Window, rootMenu: table)?
+---@field onMenu fun(window: LiqUI_Window, rootMenu: table)?
 ---@field size number?
 ---@field iconSize number?
 ---@field enabled boolean?

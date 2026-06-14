@@ -198,17 +198,14 @@ function Window:New(options)
     local iconSize = buttonConfig.iconSize or 12
     local isEnabled = buttonConfig.enabled ~= false
 
-    -- Create the button frame
     local button
-    if buttonConfig.setupMenu then
-      -- Create dropdown button
+    if buttonConfig.onMenu then
+      local onMenu = buttonConfig.onMenu
       button = CreateFrame("DropdownButton", "$parent" .. buttonName, window.titlebar)
-      local setupMenu = buttonConfig.setupMenu
-      button:SetupMenu(function(_, rootMenu)
-        setupMenu(window, rootMenu)
-      end)
+      button.menuGenerator = function(_, rootMenu)
+        onMenu(window, rootMenu)
+      end
     else
-      -- Create regular button
       button = CreateFrame("Button", "$parent" .. buttonName, window.titlebar)
       button:RegisterForClicks("AnyUp")
       if buttonConfig.onClick then
@@ -316,7 +313,7 @@ function Window:New(options)
     end
     window.titlebar.title = window.titlebar:CreateFontString("$parentText", "OVERLAY")
     local titleLeft = window.config.icon and (20 + LiqUI.Constants.layout.sizes.padding) or
-    LiqUI.Constants.layout.sizes.padding
+        LiqUI.Constants.layout.sizes.padding
     window.titlebar.title:SetPoint("LEFT", window.titlebar, "LEFT", titleLeft, 0)
     window.titlebar.title:SetFontObject("SystemFont_Med3")
     window.titlebar.title:SetText(window.config.title or window.config.name)
