@@ -469,11 +469,10 @@ end
 ---@param contentWidth number|nil
 ---@param contentHeight number|nil
 local function updateScrollAreaLayout(scrollArea, contentWidth, contentHeight)
-  local overflowTolerance = 1
+  local overflowTolerance = LiqUI.Constants.layout.sizes.scrollbar.overflowTolerance
 
   contentWidth = contentWidth or scrollArea.content:GetWidth()
   contentHeight = contentHeight or scrollArea.content:GetHeight()
-  scrollArea.content:SetSize(contentWidth, contentHeight)
 
   local containerWidth = scrollArea.container:GetWidth()
   local containerHeight = scrollArea.container:GetHeight()
@@ -481,8 +480,15 @@ local function updateScrollAreaLayout(scrollArea, contentWidth, contentHeight)
     return
   end
 
-  local showVertical = scrollArea.vertical and contentHeight > containerHeight + overflowTolerance
-  local showHorizontal = scrollArea.horizontal and contentWidth > containerWidth + overflowTolerance
+  local layoutContentWidth = contentWidth
+  local layoutContentHeight = contentHeight
+  if scrollArea.vertical and contentHeight <= containerHeight + overflowTolerance then
+    layoutContentHeight = containerHeight
+  end
+  if scrollArea.horizontal and contentWidth <= containerWidth + overflowTolerance then
+    layoutContentWidth = containerWidth
+  end
+  scrollArea.content:SetSize(layoutContentWidth, layoutContentHeight)
 
   if scrollArea.verticalScrollBox then
     scrollArea.verticalScrollBox:ClearAllPoints()
@@ -508,6 +514,34 @@ local function updateScrollAreaLayout(scrollArea, contentWidth, contentHeight)
     scrollArea.verticalScrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
   elseif scrollArea.horizontal then
     scrollArea.horizontalScrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
+  end
+
+  local showVertical = false
+  if scrollArea.vertical and scrollArea.verticalScrollBox then
+    if contentHeight > containerHeight + overflowTolerance then
+      local scrollRange = scrollArea.verticalScrollBox:GetDerivedScrollRange()
+      if scrollRange > overflowTolerance and scrollArea.verticalScrollBox:HasScrollableExtent() then
+        showVertical = true
+      else
+        scrollArea.verticalScrollBox:ScrollToBegin()
+      end
+    else
+      scrollArea.verticalScrollBox:ScrollToBegin()
+    end
+  end
+
+  local showHorizontal = false
+  if scrollArea.horizontal and scrollArea.horizontalScrollBox then
+    if contentWidth > containerWidth + overflowTolerance then
+      local scrollRange = scrollArea.horizontalScrollBox:GetDerivedScrollRange()
+      if scrollRange > overflowTolerance and scrollArea.horizontalScrollBox:HasScrollableExtent() then
+        showHorizontal = true
+      else
+        scrollArea.horizontalScrollBox:ScrollToBegin()
+      end
+    else
+      scrollArea.horizontalScrollBox:ScrollToBegin()
+    end
   end
 
   local wheelScrollBox = scrollArea:GetWheelScrollBox()

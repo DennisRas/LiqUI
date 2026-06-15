@@ -126,6 +126,7 @@ Constants.layout = {
     scrollbar = {
       thickness = 10,
       horizontalWheelPanExtent = 10,
+      overflowTolerance = 2,
     },
     maxWindowWidthMargin = 100,
   },
