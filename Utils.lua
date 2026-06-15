@@ -576,24 +576,24 @@ end
 
 ---WowScrollBox viewport with optional horizontal and/or vertical scrolling.
 ---@param parent Frame
----@param config LiqUI_ScrollAreaConfig?
+---@param options LiqUI_ScrollAreaOptions?
 ---@return LiqUI_ScrollArea
-function Utils.CreateScrollArea(parent, config)
-  local horizontal = config and config.horizontal or false
-  local vertical = config and config.vertical or false
+function Utils.CreateScrollArea(parent, options)
+  local horizontal = options and options.horizontal or false
+  local vertical = options and options.vertical or false
   if not horizontal and not vertical then
     error("LiqUI scroll area requires horizontal and/or vertical", 2)
   end
 
-  local containerName = config and config.name
+  local containerName = options and options.name
   if not containerName then
     scrollAreaCounter = scrollAreaCounter + 1
     containerName = "LiqUIScrollArea" .. scrollAreaCounter
   end
-  local container = CreateFrame("Frame", containerName, parent)
 
-  local content = CreateFrame("Frame", "$parentContent", container)
-  content.scrollable = true
+  local containerFrame = CreateFrame("Frame", containerName, parent)
+  local contentFrame = CreateFrame("Frame", "$parentContent", containerFrame)
+  contentFrame.scrollable = true
 
   local verticalScrollBox
   local verticalScrollBar
@@ -603,16 +603,17 @@ function Utils.CreateScrollArea(parent, config)
   local horizontalView
 
   if vertical then
-    verticalScrollBox = CreateFrame("Frame", "$parentVerticalScrollBox", container, "WowScrollBox")
-    verticalScrollBar = CreateFrame("EventFrame", "$parentVerticalScrollBar", container, "MinimalScrollBar")
+    verticalScrollBox = CreateFrame("Frame", "$parentVerticalScrollBox", containerFrame, "WowScrollBox")
+    verticalScrollBar = CreateFrame("EventFrame", "$parentVerticalScrollBar", containerFrame, "MinimalScrollBar")
     Utils.StyleVerticalScrollBar(verticalScrollBar)
     hideScrollBoxShadows(verticalScrollBox)
     verticalView = CreateScrollBoxLinearView()
   end
 
   if horizontal then
-    horizontalScrollBox = CreateFrame("Frame", "$parentHorizontalScrollBox", container, "WowScrollBox")
-    horizontalScrollBar = CreateFrame("EventFrame", "$parentHorizontalScrollBar", container, "WowTrimHorizontalScrollBar")
+    horizontalScrollBox = CreateFrame("Frame", "$parentHorizontalScrollBox", containerFrame, "WowScrollBox")
+    horizontalScrollBar = CreateFrame("EventFrame", "$parentHorizontalScrollBar", containerFrame,
+      "WowTrimHorizontalScrollBar")
     Utils.StyleHorizontalScrollBar(horizontalScrollBar)
     hideScrollBoxShadows(horizontalScrollBox)
     horizontalView = CreateScrollBoxLinearView()
@@ -622,28 +623,29 @@ function Utils.CreateScrollArea(parent, config)
   if horizontal and vertical then
     horizontalScrollBox.scrollable = true
     horizontalScrollBox:SetParent(verticalScrollBox)
-    content:SetParent(horizontalScrollBox)
+    contentFrame:SetParent(horizontalScrollBox)
     ScrollUtil.InitScrollBoxWithScrollBar(horizontalScrollBox, horizontalScrollBar, horizontalView)
     ScrollUtil.InitDefaultLinearDragBehavior(horizontalScrollBox)
     ScrollUtil.InitScrollBoxWithScrollBar(verticalScrollBox, verticalScrollBar, verticalView)
     ScrollUtil.InitDefaultLinearDragBehavior(verticalScrollBox)
   elseif vertical then
-    content:SetParent(verticalScrollBox)
+    contentFrame:SetParent(verticalScrollBox)
     ScrollUtil.InitScrollBoxWithScrollBar(verticalScrollBox, verticalScrollBar, verticalView)
     ScrollUtil.InitDefaultLinearDragBehavior(verticalScrollBox)
   else
-    content:SetParent(horizontalScrollBox)
+    contentFrame:SetParent(horizontalScrollBox)
     ScrollUtil.InitScrollBoxWithScrollBar(horizontalScrollBox, horizontalScrollBar, horizontalView)
     ScrollUtil.InitDefaultLinearDragBehavior(horizontalScrollBox)
   end
 
-  local defaultPanExtent = vertical and LiqUI.Constants.layout.sizes.row or LiqUI.Constants.layout.sizes.scrollbar.horizontalWheelPanExtent
-  local wheelPanExtent = (config and config.wheelPanExtent) or defaultPanExtent
+  local defaultPanExtent = vertical and LiqUI.Constants.layout.sizes.row or
+      LiqUI.Constants.layout.sizes.scrollbar.horizontalWheelPanExtent
+  local wheelPanExtent = (options and options.wheelPanExtent) or defaultPanExtent
 
   ---@type LiqUI_ScrollArea
   local scrollArea = {
-    container = container,
-    content = content,
+    container = containerFrame,
+    content = contentFrame,
     horizontal = horizontal,
     vertical = vertical,
     verticalScrollBox = verticalScrollBox,
@@ -713,20 +715,20 @@ function Utils.CreateScrollArea(parent, config)
   local wheelScrollBox = scrollArea:GetWheelScrollBox()
   if wheelScrollBox then
     applyOuterWheelPanExtent(wheelScrollBox, wheelPanExtent)
-    Utils.BindScrollBoxMouseWheel(container, wheelScrollBox)
+    Utils.BindScrollBoxMouseWheel(containerFrame, wheelScrollBox)
   end
 
   if verticalScrollBar then
-    verticalScrollBar:SetFrameLevel(container:GetFrameLevel() + 10)
+    verticalScrollBar:SetFrameLevel(containerFrame:GetFrameLevel() + 10)
   end
   if horizontalScrollBar then
-    horizontalScrollBar:SetFrameLevel(container:GetFrameLevel() + 10)
+    horizontalScrollBar:SetFrameLevel(containerFrame:GetFrameLevel() + 10)
   end
 
-  container:SetScript("OnSizeChanged", function()
+  containerFrame:SetScript("OnSizeChanged", function()
     scrollArea:UpdateLayout()
   end)
-  content:SetScript("OnSizeChanged", function()
+  contentFrame:SetScript("OnSizeChanged", function()
     scrollArea:UpdateLayout()
   end)
 
@@ -776,7 +778,7 @@ function Utils.CreateScrollBox(parent, name, options)
 
   if not ScrollUtil or not CreateScrollBoxLinearView then
     error(
-      "LiqUI.CreateScrollBox requires Blizzard_SharedXML (ScrollUtil, CreateScrollBoxLinearView). Ensure UI is loaded.")
+    "LiqUI.CreateScrollBox requires Blizzard_SharedXML (ScrollUtil, CreateScrollBoxLinearView). Ensure UI is loaded.")
   end
 
   local scrollBox = CreateFrame("Frame", name, parent, "WowScrollBox")
@@ -818,7 +820,7 @@ end
 ---@param destination table
 ---@param source table?
 ---@return table
-function Utils.TableMergeConfig(destination, source)
+function Utils.TableMergeOptions(destination, source)
   if not source then
     return destination
   end
@@ -826,10 +828,10 @@ function Utils.TableMergeConfig(destination, source)
     if type(value) == "table" and not isRegionObject(value) then
       local existing = destination[key]
       if type(existing) == "table" and not isRegionObject(existing) then
-        Utils.TableMergeConfig(existing, value)
+        Utils.TableMergeOptions(existing, value)
       else
         destination[key] = {}
-        Utils.TableMergeConfig(destination[key], value)
+        Utils.TableMergeOptions(destination[key], value)
       end
     else
       destination[key] = value

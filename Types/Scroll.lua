@@ -1,4 +1,4 @@
----@class LiqUI_ScrollAreaConfig
+---@class LiqUI_ScrollAreaOptions
 ---@field name string?
 ---@field horizontal boolean?
 ---@field vertical boolean?
@@ -18,4 +18,3 @@
 ---@class LiqUI_ScrollingEditBoxHost
 ---@field textBox Frame
 ---@field scrollBar EventFrame
-

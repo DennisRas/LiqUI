@@ -4,7 +4,7 @@ if not LiqUI then
   return
 end
 
----@class LiqUI_TableManager
+---@class LiqUI_Table
 local Table = {}
 LiqUI.Table = Table
 
@@ -14,7 +14,7 @@ local SetBackgroundColor = LiqUI.Utils.SetBackgroundColor
 local SetHighlightColor = LiqUI.Utils.SetHighlightColor
 local TableFilter = LiqUI.Utils.TableFilter
 local TableForEach = LiqUI.Utils.TableForEach
-local TableMergeConfig = LiqUI.Utils.TableMergeConfig
+local TableMergeOptions = LiqUI.Utils.TableMergeOptions
 
 local HEADER_BACKGROUND_ALPHA = 0.3
 
@@ -79,9 +79,9 @@ local function normalizeRow(row)
 end
 
 ---@param data LiqUI_TableData
----@return LiqUI_TableStoredData
+---@return LiqUI_TableDataRowExtended[]
 local function normalizeData(data)
-  ---@type LiqUI_TableStoredData
+  ---@type LiqUI_TableDataRowExtended[]
   local normalized = {}
   for rowIndex = 1, #data do
     normalized[rowIndex] = normalizeRow(data[rowIndex])
@@ -89,8 +89,8 @@ local function normalizeData(data)
   return normalized
 end
 
----@param columns LiqUI_TableConfigColumn[]
----@param sorting LiqUI_TableConfigSorting|nil
+---@param columns LiqUI_TableOptionsColumn[]
+---@param sorting LiqUI_TableOptionsSorting|nil
 local function validateSortingColumns(columns, sorting)
   if not sorting or not sorting.enabled then
     return
@@ -104,30 +104,29 @@ end
 
 ---@param instance LiqUI_Instance
 function Table:Embed(instance)
-  instance.Table = LiqUI.BindManager(instance, self, { frames = {} })
+  instance.Table = LiqUI.BindManager(instance, self, { instances = {} })
 end
 
 ---Create a new table frame
----@param config LiqUI_TableConfig?
----@return LiqUI_TableFrame
-function Table:New(config)
+---@param options LiqUI_TableOptions?
+---@return LiqUI_TableInstance
+function Table:New(options)
   if not self.db then
     error("LiqUI.Table:New requires a LiqUI instance", 2)
   end
-  if not config or not config.name or config.name == "" then
-    error("LiqUI Table: config.name is required", 2)
+  if not options then
+    error("LiqUI Table: options is required", 2)
+  end
+  if not options.name or options.name == "" then
+    error("LiqUI Table: options.name is required", 2)
   end
 
-  self.db.tables[config.name] = self.db.tables[config.name] or {}
-  local db = self.db.tables[config.name]
-  db.hiddenColumns = db.hiddenColumns or {}
+  local isntanceName = options.name
+  ---@type LiqUI_TableInstance
+  local frame = CreateFrame("Frame", "LiqUITable" .. self.name .. isntanceName) ---@diagnostic disable-line:assign-type-mismatch
 
-  local frameSuffix = self.name:gsub("[^%w]", "") .. config.name:gsub("[^%w]", "")
-  ---@type LiqUI_TableFrame
-  local frame = CreateFrame("Frame", "LiqUITable" .. frameSuffix) ---@diagnostic disable-line:assign-type-mismatch
-
-  ---@type LiqUI_TableConfig
-  local defaultConfig = {
+  ---@type LiqUI_TableOptions
+  local defaultOptions = {
     header = {
       enabled = true,
       sticky = false,
@@ -152,54 +151,52 @@ function Table:New(config)
       end,
     },
   }
-  ---@type LiqUI_TableConfig
-  local mergedConfig = {}
-  TableMergeConfig(mergedConfig, defaultConfig)
-  TableMergeConfig(mergedConfig, config or {})
-  if config and config.rows and not mergedConfig.rowStyle then
-    mergedConfig.rowStyle = config.rows
-  end
-  if config and config.cells and not mergedConfig.cellStyle then
-    mergedConfig.cellStyle = config.cells
-  end
-  frame.config = mergedConfig
+  ---@type LiqUI_TableOptions
+  local mergedOptions = {}
+  TableMergeOptions(mergedOptions, defaultOptions)
+  TableMergeOptions(mergedOptions, options)
 
-  do
-    local sorting = frame.config.sorting
-    if sorting and sorting.enabled then
-      if type(sorting.defaultCompare) ~= "function" then
-        error("LiqUI Table: sorting.enabled requires sorting.defaultCompare", 2)
-      end
-      if sorting.defaultOrder ~= "asc" and sorting.defaultOrder ~= "desc" then
-        error("LiqUI Table: sorting.enabled requires sorting.defaultOrder to be \"asc\" or \"desc\"", 2)
-      end
+  local sorting = mergedOptions.sorting
+  if sorting and sorting.enabled then
+    if type(sorting.defaultCompare) ~= "function" then
+      error("LiqUI Table: sorting.enabled requires sorting.defaultCompare", 2)
+    end
+    if sorting.defaultOrder ~= "asc" and sorting.defaultOrder ~= "desc" then
+      error("LiqUI Table: sorting.enabled requires sorting.defaultOrder to be \"asc\" or \"desc\"", 2)
+    end
+  end
+  if mergedOptions.columns then
+    validateSortingColumns(mergedOptions.columns, mergedOptions.sorting)
+  end
+
+  if not self.db.tables[isntanceName] then
+    ---@type LiqUI_TableDB
+    self.db.tables[isntanceName] = {
+      hiddenColumns = {},
+    }
+  end
+
+  if self.db.tables[isntanceName].sortState then
+    mergedOptions.sorting.savedState = self.db.tables[isntanceName].sortState
+  end
+  if not mergedOptions.sorting.onStateChanged then
+    mergedOptions.sorting.onStateChanged = function(state)
+      self.db.tables[isntanceName].sortState = state
     end
   end
 
+  frame.options = mergedOptions
+  frame.db = self.db.tables[isntanceName]
   frame.data = {}
   frame.rowFrames = {}
-  ---@type LiqUI_TableSortState
   frame.sortState = { columnId = nil, direction = nil }
-  frame.db = db
   frame.layoutSize = { shownWidth = 0, shownHeight = 0 }
 
-  if db then
-    frame.config.sorting = frame.config.sorting or {}
-    if db.sortState then
-      frame.config.sorting.savedState = db.sortState
-    end
-    if not frame.config.sorting.onStateChanged then
-      frame.config.sorting.onStateChanged = function(state)
-        db.sortState = state
-      end
-    end
-  end
-
-  ---@return LiqUI_TableConfigColumn[]
+  ---@return LiqUI_TableOptionsColumn[]
   function frame:GetActiveColumns()
-    ---@type LiqUI_TableConfigColumn[]
+    ---@type LiqUI_TableOptionsColumn[]
     local result = {}
-    local columns = self.config.columns or {}
+    local columns = self.options.columns or {}
     local hiddenColumns = self.db and self.db.hiddenColumns
     TableForEach(columns, function(column, columnIndex)
       if column.id and hiddenColumns and hiddenColumns[column.id] then
@@ -233,7 +230,7 @@ function Table:New(config)
   end
 
   function frame:validateSortState()
-    local sorting = self.config.sorting
+    local sorting = self.options.sorting
     if not sorting or not sorting.enabled then
       return
     end
@@ -258,7 +255,7 @@ function Table:New(config)
   end
 
   function frame:onSortStateChanged()
-    local sorting = self.config.sorting
+    local sorting = self.options.sorting
     if sorting and sorting.onStateChanged then
       sorting.onStateChanged(self.sortState)
     end
@@ -271,7 +268,7 @@ function Table:New(config)
   end
 
   function frame:applySort()
-    local sorting = self.config.sorting
+    local sorting = self.options.sorting
     if not sorting or not sorting.enabled then
       return
     end
@@ -339,10 +336,10 @@ function Table:New(config)
 
   function frame:Render()
     local sortState = self.sortState
-    local headerConfig = self.config.header
-    local rowStyle = self.config.rowStyle
-    local cellStyle = self.config.cellStyle
-    local sortingConfig = self.config.sorting
+    local headerConfig = self.options.header
+    local rowStyle = self.options.rowStyle
+    local cellStyle = self.options.cellStyle
+    local sortingConfig = self.options.sorting
     local sortingEnabled = sortingConfig and sortingConfig.enabled
     local activeColumns = self:GetActiveColumns()
 
@@ -625,9 +622,9 @@ function Table:New(config)
 
   ---@param data LiqUI_TableData
   function frame:SetData(data)
-    local columns = self.config.columns
+    local columns = self.options.columns
     if not columns or #columns == 0 then
-      error("LiqUI Table: config.columns is required", 2)
+      error("LiqUI Table: columns is required", 2)
     end
     if type(data) ~= "table" then
       error("LiqUI Table: data must be a table", 2)
@@ -637,18 +634,18 @@ function Table:New(config)
         error(format("LiqUI Table: row #%d must be a table", rowIndex), 2)
       end
     end
-    validateSortingColumns(columns, self.config.sorting)
+    validateSortingColumns(columns, self.options.sorting)
     self.data = normalizeData(data)
     self:runTable(true)
   end
 
-  ---@param columns LiqUI_TableConfigColumn[]
+  ---@param columns LiqUI_TableOptionsColumn[]
   function frame:SetColumns(columns)
     if not columns or #columns == 0 then
       error("LiqUI Table: columns is required", 2)
     end
-    validateSortingColumns(columns, self.config.sorting)
-    self.config.columns = columns
+    validateSortingColumns(columns, self.options.sorting)
+    self.options.columns = columns
     self:runTable(true)
   end
 
@@ -658,7 +655,6 @@ function Table:New(config)
     if not self.db then
       return
     end
-    self.db.hiddenColumns = self.db.hiddenColumns or {}
     if hidden then
       self.db.hiddenColumns[columnId] = true
     else
@@ -685,7 +681,7 @@ function Table:New(config)
 
   ---@param height number
   function frame:SetRowHeight(height)
-    self.config.rowStyle.height = height
+    self.options.rowStyle.height = height
     if self.scrollArea then
       self.scrollArea:SetWheelPanExtent(height)
     end
@@ -699,7 +695,7 @@ function Table:New(config)
     return layoutSize.shownWidth, layoutSize.shownHeight
   end
 
-  local sorting = frame.config.sorting
+  local sorting = frame.options.sorting
   local saved = sorting and sorting.savedState
   if sorting and sorting.enabled and saved and type(saved.columnId) == "string" and saved.columnId ~= "" then
     frame.sortState.columnId = saved.columnId
@@ -716,7 +712,7 @@ function Table:New(config)
     name = "$parentScrollArea",
     vertical = true,
     horizontal = false,
-    wheelPanExtent = frame.config.rowStyle.height or LiqUI.Constants.layout.sizes.row,
+    wheelPanExtent = frame.options.rowStyle.height or LiqUI.Constants.layout.sizes.row,
   })
 
   frame.scrollArea:HookScript("OnSizeChanged", function()
@@ -724,6 +720,6 @@ function Table:New(config)
   end)
 
   frame:runTable(false)
-  table.insert(self.frames, frame)
+  self.instances[isntanceName] = frame
   return frame
 end

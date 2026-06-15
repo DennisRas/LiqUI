@@ -1,4 +1,4 @@
----@class LiqUI_LoggerState
+---@class LiqUI_LoggerDB
 ---@field enabled boolean
 ---@field autoScroll boolean
 ---@field autoShow boolean
@@ -17,10 +17,12 @@
 ---@field onWindowShow function?
 
 ---@class LiqUI_Logger
----@field manager LiqUI_InstanceLogger
----@field db LiqUI_LoggerState
----@field config LiqUI_LoggerOptions
----@field window LiqUI_Window|nil
----@field refreshPending boolean
+---@field embed LiqUI_Instance
+---@field instances table<string, LiqUI_LoggerInstance>
 
----@class LiqUI_LoggerManager
+---@class LiqUI_LoggerInstance
+---@field embed LiqUI_Instance
+---@field db LiqUI_LoggerDB
+---@field options LiqUI_LoggerOptions
+---@field window LiqUI_WindowInstance|nil
+---@field refreshPending boolean

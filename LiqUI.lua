@@ -17,6 +17,7 @@ _G.LiqUI = LiqUI
 ---@return table
 function LiqUI.BindManager(instance, prototype, state)
   local manager = state or {}
+  manager.embed = instance
   setmetatable(manager, {
     __index = function(_, key)
       local value = prototype[key]
@@ -29,23 +30,29 @@ function LiqUI.BindManager(instance, prototype, state)
   return manager
 end
 
----@param config LiqUI_NewOptions
+---@param options LiqUI_NewOptions
 ---@return LiqUI_Instance
-function LiqUI:New(config)
-  if not config or not config.name or config.name == "" then
+function LiqUI:New(options)
+  if not options or not options.name or options.name == "" then
     error("LiqUI:New requires name", 2)
   end
-  if type(config.db) ~= "table" then
+  if type(options.db) ~= "table" then
     error("LiqUI:New requires db", 2)
   end
+  if type(options.db.windows) ~= "table" then
+    error("LiqUI:New requires db.windows", 2)
+  end
+  if type(options.db.tables) ~= "table" then
+    error("LiqUI:New requires db.tables", 2)
+  end
+  if type(options.db.loggers) ~= "table" then
+    error("LiqUI:New requires db.loggers", 2)
+  end
 
-  local db = config.db
-  db.windows = db.windows or {}
-  db.tables = db.tables or {}
-  db.loggers = db.loggers or {}
+  local db = options.db
 
   LiqUI.instances = LiqUI.instances or {}
-  local existing = LiqUI.instances[config.name]
+  local existing = LiqUI.instances[options.name]
   if existing then
     existing.db = db
     return existing
@@ -53,7 +60,7 @@ function LiqUI:New(config)
 
   ---@type LiqUI_Instance
   local instance = {
-    name = config.name,
+    name = options.name,
     db = db,
   }
 
@@ -64,6 +71,6 @@ function LiqUI:New(config)
   end
 
   setmetatable(instance, { __index = LiqUI })
-  LiqUI.instances[config.name] = instance
+  LiqUI.instances[options.name] = instance
   return instance
 end

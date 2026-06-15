@@ -4,18 +4,18 @@ if not LiqUI then
   return
 end
 
----@class LiqUI_LoggerManager
+---@class LiqUI_Logger
 local Logger = {}
 LiqUI.Logger = Logger
 
-local TableMergeConfig = LiqUI.Utils.TableMergeConfig
+local TableMergeOptions = LiqUI.Utils.TableMergeOptions
 local CreateScrollingEditBox = LiqUI.Utils.CreateScrollingEditBox
 
 local LoggerInstance = {}
 
 ---@param instance LiqUI_Instance
 function Logger:Embed(instance)
-  instance.Logger = LiqUI.BindManager(instance, self, { loggers = {} })
+  instance.Logger = LiqUI.BindManager(instance, self, { instances = {} })
 end
 
 ---@param textBox Frame
@@ -37,20 +37,21 @@ local function applyLogText(textBox, text, scrollToEnd)
   end
 end
 
----@param logger LiqUI_Logger
+---@param logger LiqUI_LoggerInstance
 local function trimLoggerLines(logger)
-  local linesMax = logger.config.linesMax or 200
+  local linesMax = logger.options.linesMax or 200
   while #logger.db.lines > linesMax do
     table.remove(logger.db.lines, 1)
   end
 end
 
 ---@param options LiqUI_LoggerOptions?
----@return LiqUI_Logger
+---@return LiqUI_LoggerInstance
 function Logger:New(options)
   if not self.db then
     error("LiqUI.Logger:New requires a LiqUI instance", 2)
   end
+
   ---@type LiqUI_LoggerOptions
   local defaultOptions = {
     name = "Logger",
@@ -64,33 +65,33 @@ function Logger:New(options)
   }
   ---@type LiqUI_LoggerOptions
   local mergedOptions = {}
-  TableMergeConfig(mergedOptions, defaultOptions)
-  TableMergeConfig(mergedOptions, options or {})
+  TableMergeOptions(mergedOptions, defaultOptions)
+  TableMergeOptions(mergedOptions, options or {})
+
   local loggerName = mergedOptions.name or "Logger"
-  local loggersDb = self.db.loggers
-  if not loggersDb[loggerName] then
-    ---@type LiqUI_LoggerState
-    local defaultState = {
+  if loggerName == "" then
+    error("LiqUI Logger: options.name is required", 2)
+  end
+
+  if not self.db.loggers[loggerName] then
+    ---@type LiqUI_LoggerDB
+    self.db.loggers[loggerName] = {
       enabled = false,
       autoScroll = true,
       autoShow = false,
       lines = {},
     }
-    loggersDb[loggerName] = defaultState
   end
-  local db = loggersDb[loggerName]
-  if not db.lines then
-    db.lines = {}
-  end
-  ---@type LiqUI_Logger
+
+  ---@type LiqUI_LoggerInstance
   local logger = setmetatable({
-    manager = self,
-    db = db,
-    config = mergedOptions,
+    embed = self.embed,
+    db = self.db.loggers[loggerName],
+    options = mergedOptions,
     refreshPending = false,
     window = nil,
   }, { __index = LoggerInstance })
-  self.loggers[loggerName] = logger
+  self.instances[loggerName] = logger
   return logger
 end
 
@@ -118,37 +119,37 @@ end
 
 function LoggerInstance:Render()
   if not self.window then
-    local config = self.config
+    local options = self.options
     ---@type LiqUI_WindowOptions
     local windowOptions = {
-      name = config.name,
-      title = config.title,
-      width = config.width,
-      height = config.height,
+      name = options.name,
+      title = options.title,
+      width = options.width,
+      height = options.height,
       titlebarButtons = {
         {
           name = "ClearButton",
-          icon = config.clearIcon,
+          icon = options.clearIcon,
           tooltipTitle = "Clear log",
           tooltipDescription = "Remove all lines from the log window.",
           onClick = function()
             self:Clear()
           end,
-          iconSize = config.clearIconSize,
+          iconSize = options.clearIconSize,
         },
       },
     }
-    local window = self.manager.Window:New(windowOptions)
+    local window = self.embed.Window:New(windowOptions)
     window:SetScript("OnShow", function()
-      if config.onWindowShow then
-        config.onWindowShow(window)
+      if options.onWindowShow then
+        options.onWindowShow(window)
       end
       self:Render()
     end)
 
-    local scrollHost = CreateScrollingEditBox(window.body, config.bodyPadding)
+    local scrollHost = CreateScrollingEditBox(window.body, options.bodyPadding)
     local textBox = scrollHost.textBox
-    textBox:SetFontObject(config.fontObject or "ChatFontSmall")
+    textBox:SetFontObject(options.fontObject or "ChatFontSmall")
 
     local editBox = textBox:GetEditBox()
     editBox.logText = ""

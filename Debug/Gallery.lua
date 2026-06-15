@@ -81,7 +81,7 @@ local function ensureGallery()
 
   galleryWindow = liqui.Window:New(windowOptions)
 
-  ---@type LiqUI_TableConfig
+  ---@type LiqUI_TableOptions
   local tableConfig = {
     name = "Gallery",
     columns = {

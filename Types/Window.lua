@@ -1,19 +1,23 @@
----@class LiqUI_TitlebarButton
+---@class LiqUI_WindowTitlebarButton
 ---@field name string
 ---@field icon string
 ---@field tooltipTitle string
 ---@field tooltipDescription string
 ---@field onClick function?
----@field onMenu fun(window: LiqUI_Window, rootMenu: table)?
+---@field onMenu fun(window: LiqUI_WindowInstance, rootMenu: table)?
 ---@field size number?
 ---@field iconSize number?
 ---@field enabled boolean?
 
 ---@alias LiqUI_WindowPointPersisted [string, string, number, number]
 
----@class LiqUI_Window : Frame
----@field config LiqUI_WindowOptions
----@field db LiqUI_WindowSettings|nil
+---@class LiqUI_Window
+---@field embed LiqUI_Instance
+---@field instances table<string, LiqUI_WindowInstance>
+
+---@class LiqUI_WindowInstance : Frame
+---@field options LiqUI_WindowOptions
+---@field db LiqUI_WindowDB|nil
 ---@field titlebar Frame?
 ---@field body LiqUI_WindowBody?
 ---@field sidebar Frame?
@@ -27,13 +31,11 @@
 ---@field placeholderText FontString?
 ---@field scrollArea LiqUI_ScrollArea?
 
----@class LiqUI_WindowSettings
+---@class LiqUI_WindowDB
 ---@field point LiqUI_WindowPointPersisted?
 ---@field scale number?
 ---@field windowColor ColorTable?
 ---@field border boolean?
-
----@class LiqUI_WindowManager
 
 ---@class LiqUI_WindowOptions
 ---@field parent Frame?
@@ -48,9 +50,9 @@
 ---@field border number?
 ---@field windowScale number?
 ---@field windowColor ColorTable?
----@field titlebarButtons LiqUI_TitlebarButton[]?
----@field onClose fun(window: LiqUI_Window)?
----@field onShow fun(window: LiqUI_Window)?
+---@field titlebarButtons LiqUI_WindowTitlebarButton[]?
+---@field onClose fun(window: LiqUI_WindowInstance)?
+---@field onShow fun(window: LiqUI_WindowInstance)?
 
 ---@class LiqUI_WindowProgressBar : StatusBar
 ---@field background Texture
