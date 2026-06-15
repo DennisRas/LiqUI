@@ -6,9 +6,22 @@ local BACKDROP = C.shared.backdropTexture
 local CONTENT_SCROLL_BAR_WIDTH = 6
 
 LiqUIDB = LiqUIDB or {}
-LiqUIDB.liqui = LiqUIDB.liqui or {}
 
-local liqui = LiqUI:New({ name = "LiqUI", db = LiqUIDB.liqui })
+---@return LiqUI_DB
+local function getEmbedDB()
+  local liqui = LiqUIDB.liqui
+  if type(liqui) ~= "table" or type(liqui.windows) ~= "table" or type(liqui.tables) ~= "table" or type(liqui.loggers) ~= "table" then
+    ---@type LiqUI_DB
+    LiqUIDB.liqui = {
+      windows = type(liqui) == "table" and type(liqui.windows) == "table" and liqui.windows or {},
+      tables = type(liqui) == "table" and type(liqui.tables) == "table" and liqui.tables or {},
+      loggers = type(liqui) == "table" and type(liqui.loggers) == "table" and liqui.loggers or {},
+    }
+  end
+  return LiqUIDB.liqui
+end
+
+local liqui = LiqUI:New({ name = "LiqUI", db = getEmbedDB() })
 
 local Settings = {}
 LiqUI.Settings = Settings
