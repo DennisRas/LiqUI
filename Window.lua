@@ -14,7 +14,6 @@ local SetBackgroundColor = LiqUI.Utils.SetBackgroundColor
 local TableCopy = LiqUI.Utils.TableCopy
 local TableFilter = LiqUI.Utils.TableFilter
 local TableFind = LiqUI.Utils.TableFind
-local TableForEach = LiqUI.Utils.TableForEach
 local TableMergeConfig = LiqUI.Utils.TableMergeConfig
 
 local function applyWindowPoint(window, point)
@@ -29,34 +28,6 @@ local function applyWindowPoint(window, point)
     window:SetPoint(point[1], UIParent, point[2], point[3], point[4])
   elseif count >= 5 then
     window:SetPoint(unpack(point))
-  end
-end
-
-local function saveWindowDb(window, db)
-  if not db then
-    return
-  end
-  local point, relativeTo, relativePoint, x, y = window:GetPoint()
-  if relativeTo and relativeTo ~= UIParent then
-    return
-  end
-  db.point = { point, relativePoint, x, y }
-end
-
-local function applyWindowDb(window, db)
-  if not db then
-    return
-  end
-  if db.windowColor then
-    window.config.windowColor = db.windowColor
-    SetBackgroundColor(window, db.windowColor.r, db.windowColor.g, db.windowColor.b, db.windowColor.a)
-  end
-  if db.scale then
-    window:SetScale(db.scale / 100)
-    window.config.windowScale = db.scale
-  end
-  if db.point then
-    window.config.point = db.point
   end
 end
 
@@ -112,7 +83,6 @@ function Window:New(options)
   if db and not db.windowColor then
     db.windowColor = TableCopy(window.config.windowColor)
   end
-  applyWindowDb(window, db)
   window:SetFrameStrata("MEDIUM")
   window:SetFrameLevel(3000)
   window:SetToplevel(true)
@@ -126,8 +96,6 @@ function Window:New(options)
   window:SetScript("OnSizeChanged", function()
     window:SetClampRectInsets(window:GetWidth() / 2, window:GetWidth() / -2, 0, window:GetHeight() / 2)
   end)
-  SetBackgroundColor(window, window.config.windowColor.r, window.config.windowColor.g,
-    window.config.windowColor.b, window.config.windowColor.a)
 
   ---Show or hide the window
   ---@param state boolean?
@@ -297,7 +265,7 @@ function Window:New(options)
     window.titlebar:SetScript("OnDragStart", function() window:StartMoving() end)
     window.titlebar:SetScript("OnDragStop", function()
       window:StopMovingOrSizing()
-      saveWindowDb(window, db)
+      window:SaveSettings()
     end)
     window.titlebar:SetPoint("TOPLEFT", window, "TOPLEFT")
     window.titlebar:SetPoint("TOPRIGHT", window, "TOPRIGHT")
@@ -459,6 +427,192 @@ function Window:New(options)
     return window.progressOverlay:IsShown()
   end
 
+  ---@return number
+  function window:GetWindowScale()
+    if not window.db then
+      return 100
+    end
+    return window.db.scale or 100
+  end
+
+  ---@param scalePercent number
+  function window:SetWindowScale(scalePercent)
+    if not window.db then
+      return
+    end
+    window.db.scale = scalePercent
+    window:Render()
+  end
+
+  ---@return ColorTable
+  function window:GetWindowColor()
+    if window.db and window.db.windowColor then
+      return window.db.windowColor
+    end
+    return window.config.windowColor
+  end
+
+  ---@param color ColorTable
+  function window:SetWindowColor(color)
+    if not window.db then
+      return
+    end
+    window.db.windowColor = TableCopy(color)
+    window:Render()
+  end
+
+  ---@return boolean
+  function window:GetBorderShown()
+    if not window.db then
+      return true
+    end
+    return window.db.border ~= false
+  end
+
+  ---@param shown boolean
+  function window:SetBorderShown(shown)
+    if not window.db then
+      return
+    end
+    window.db.border = shown
+    window:Render()
+  end
+
+  function window:ApplySettings()
+    local settings = window.db
+    if not settings then
+      return
+    end
+    if settings.windowColor then
+      window.config.windowColor = settings.windowColor
+      SetBackgroundColor(window, settings.windowColor.r, settings.windowColor.g, settings.windowColor.b, settings.windowColor.a)
+      if window.progressOverlay then
+        SetBackgroundColor(window.progressOverlay, settings.windowColor.r, settings.windowColor.g, settings.windowColor.b, settings.windowColor.a)
+      end
+    end
+    window.config.windowScale = settings.scale or 100
+    window:SetScale((settings.scale or 100) / 100)
+    local point = settings.point or window.config.point
+    if point then
+      window.config.point = point
+      applyWindowPoint(window, point)
+    end
+    if window.border then
+      window.border:SetShown(settings.border ~= false)
+    end
+  end
+
+  function window:SaveSettings()
+    local settings = window.db
+    if not settings then
+      return
+    end
+    local point, relativeTo, relativePoint, x, y = window:GetPoint()
+    if not relativeTo or relativeTo == UIParent then
+      settings.point = { point, relativePoint, x, y }
+    end
+    settings.scale = math.floor(window:GetScale() * 100 + 0.5)
+    if window.config.windowColor then
+      settings.windowColor = TableCopy(window.config.windowColor)
+    end
+    if window.border then
+      settings.border = window.border:IsShown()
+    end
+  end
+
+  function window:Render()
+    window:ApplySettings()
+    window:SetClampRectInsets(window:GetWidth() / 2, window:GetWidth() / -2, 0, window:GetHeight() / 2)
+  end
+
+  ---@param rootMenu table
+  ---@param onRefresh fun()|nil
+  function window:AppendWindowOptionsMenu(rootMenu, onRefresh)
+    rootMenu:CreateTitle("Window")
+    local windowScale = rootMenu:CreateButton("Scaling")
+    for scalePercent = 80, 200, 10 do
+      windowScale:CreateRadio(
+        scalePercent .. "%",
+        function() return window:GetWindowScale() == scalePercent end,
+        function(data)
+          window:SetWindowScale(data)
+          if onRefresh then
+            onRefresh()
+          end
+        end,
+        scalePercent
+      )
+    end
+
+    local windowColor = window:GetWindowColor()
+    local colorInfo = {
+      r = windowColor.r,
+      g = windowColor.g,
+      b = windowColor.b,
+      opacity = windowColor.a,
+      swatchFunc = function()
+        local r, g, b = ColorPickerFrame:GetColorRGB()
+        local a = ColorPickerFrame:GetColorAlpha()
+        if r then
+          ---@type ColorTable
+          local color = {
+            r = r,
+            g = g,
+            b = b,
+            a = a or windowColor.a,
+          }
+          window:SetWindowColor(color)
+          if onRefresh then
+            onRefresh()
+          end
+        end
+      end,
+      opacityFunc = function() end,
+      cancelFunc = function(color)
+        if color.r then
+          ---@type ColorTable
+          local restored = {
+            r = color.r,
+            g = color.g,
+            b = color.b,
+            a = color.a or windowColor.a,
+          }
+          window:SetWindowColor(restored)
+          if onRefresh then
+            onRefresh()
+          end
+        end
+      end,
+      hasOpacity = 1,
+    }
+    rootMenu:CreateColorSwatch(
+      "Background color",
+      function()
+        ColorPickerFrame:SetupColorPickerAndShow(colorInfo)
+      end,
+      colorInfo
+    )
+
+    rootMenu:CreateCheckbox(
+      "Show the border",
+      function() return window:GetBorderShown() end,
+      function()
+        window:SetBorderShown(not window:GetBorderShown())
+        if onRefresh then
+          onRefresh()
+        end
+      end
+    )
+  end
+
+  window:SetScript("OnShow", function()
+    window:Render()
+    if window.config.onShow then
+      window.config.onShow(window)
+    end
+  end)
+
+  window:Render()
   window:Hide()
   table.insert(UISpecialFrames, window:GetName())
   self.windows[windowName] = window
@@ -484,22 +638,6 @@ function Window:GetBodyPlaceholderText(body)
     body.placeholderText:SetJustifyH("CENTER")
   end
   return body.placeholderText
-end
-
----Scale each window
----@param scale number
-function Window:SetWindowScale(scale)
-  TableForEach(self.windows, function(window)
-    window:SetScale(scale)
-  end)
-end
-
----Set background color to each window
----@param color ColorTable
-function Window:SetWindowBackgroundColor(color)
-  TableForEach(self.windows, function(window)
-    SetBackgroundColor(window, color.r, color.g, color.b, color.a)
-  end)
 end
 
 ---Get the maximum window width based on current screen width

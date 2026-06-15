@@ -13,7 +13,7 @@
 
 ---@class LiqUI_Window : Frame
 ---@field config LiqUI_WindowOptions
----@field db LiqUI_WindowDb|nil
+---@field db LiqUI_WindowSettings|nil
 ---@field titlebar Frame?
 ---@field body LiqUI_WindowBody?
 ---@field sidebar Frame?
@@ -25,8 +25,9 @@
 
 ---@class LiqUI_WindowBody : Frame
 ---@field placeholderText FontString?
+---@field scrollArea LiqUI_ScrollArea?
 
----@class LiqUI_WindowDb
+---@class LiqUI_WindowSettings
 ---@field point LiqUI_WindowPointPersisted?
 ---@field scale number?
 ---@field windowColor ColorTable?
@@ -49,6 +50,7 @@
 ---@field windowColor ColorTable?
 ---@field titlebarButtons LiqUI_TitlebarButton[]?
 ---@field onClose fun(window: LiqUI_Window)?
+---@field onShow fun(window: LiqUI_Window)?
 
 ---@class LiqUI_WindowProgressBar : StatusBar
 ---@field background Texture
