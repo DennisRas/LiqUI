@@ -36,6 +36,10 @@ local function repositionTitlebarButtons(window)
     return
   end
   local anchorFrame = window.titlebar.CloseButton
+  if window.titlebar.SettingsButton then
+    window.titlebar.SettingsButton:SetPoint("RIGHT", anchorFrame, "LEFT", 0, 0)
+    anchorFrame = window.titlebar.SettingsButton
+  end
   for _, titlebarButton in ipairs(window.titlebarButtons) do
     titlebarButton:SetPoint("RIGHT", anchorFrame, "LEFT", 0, 0)
     anchorFrame = titlebarButton
@@ -165,6 +169,9 @@ function Window:New(options)
     end
 
     local buttonName = buttonConfig.name
+    if buttonName == "Settings" then
+      error("Use onSettingsMenu instead of a Settings titlebarButtons entry", 2)
+    end
     if window.titlebarButtons[buttonName] then
       error("Button with name '" .. buttonName .. "' already exists")
     end
@@ -220,7 +227,6 @@ function Window:New(options)
     button:SetEnabled(isEnabled)
     button:Show()
 
-    -- Store the button
     table.insert(window.titlebarButtons, button)
 
     repositionTitlebarButtons(window)
@@ -528,6 +534,40 @@ function Window:New(options)
       SetBackgroundColor(window.titlebar.CloseButton, 1, 1, 1, 0)
       GameTooltip:Hide()
     end)
+
+    if window.options.windowOptionsMenu ~= nil then
+      error("LiqUI Window: windowOptionsMenu was removed; use onSettingsMenu or omit for window-only menu", 2)
+    end
+
+    window.titlebar.SettingsButton = CreateFrame("DropdownButton", "$parentSettingsButton", window.titlebar)
+    window.titlebar.SettingsButton.menuGenerator = function(_, rootMenu)
+      if window.options.onSettingsMenu then
+        window.options.onSettingsMenu(window, rootMenu)
+      end
+      window:AppendWindowOptionsMenu(rootMenu)
+    end
+    window.titlebar.SettingsButton.Icon = window.titlebar:CreateTexture("$parentSettingsIcon", "ARTWORK")
+    window.titlebar.SettingsButton.Icon:SetPoint("CENTER", window.titlebar.SettingsButton, "CENTER")
+    window.titlebar.SettingsButton.Icon:SetSize(12, 12)
+    window.titlebar.SettingsButton.Icon:SetTexture(LiqUI.Constants.layout.media.iconSettings)
+    window.titlebar.SettingsButton.Icon:SetVertexColor(0.7, 0.7, 0.7, 1)
+    window.titlebar.SettingsButton:SetSize(LiqUI.Constants.layout.sizes.titlebar.height,
+      LiqUI.Constants.layout.sizes.titlebar.height)
+    window.titlebar.SettingsButton:SetScript("OnEnter", function()
+      window.titlebar.SettingsButton.Icon:SetVertexColor(0.9, 0.9, 0.9, 1)
+      SetBackgroundColor(window.titlebar.SettingsButton, 1, 1, 1, 0.05)
+      GameTooltip:SetOwner(window.titlebar.SettingsButton, "ANCHOR_TOP")
+      GameTooltip:SetText("Settings", 1, 1, 1, 1, true)
+      GameTooltip:AddLine("Window scale, color, and border.", NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g,
+        NORMAL_FONT_COLOR.b, true)
+      GameTooltip:Show()
+    end)
+    window.titlebar.SettingsButton:SetScript("OnLeave", function()
+      window.titlebar.SettingsButton.Icon:SetVertexColor(0.7, 0.7, 0.7, 1)
+      SetBackgroundColor(window.titlebar.SettingsButton, 1, 1, 1, 0)
+      GameTooltip:Hide()
+    end)
+    window.titlebar.SettingsButton:Show()
   end
 
   local topOffset = 0
@@ -562,6 +602,8 @@ function Window:New(options)
     for _, buttonConfig in ipairs(window.options.titlebarButtons) do
       window:AddTitlebarButton(buttonConfig)
     end
+  elseif window.titlebar and window.titlebar.SettingsButton then
+    repositionTitlebarButtons(window)
   end
 
   local contentTopOffset = topOffset

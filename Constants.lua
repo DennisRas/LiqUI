@@ -133,6 +133,7 @@ Constants.layout = {
   media = {
     whiteSquare = "Interface/BUTTONS/WHITE8X8",
     iconClose = "Interface/AddOns/LiqUI/Media/Icon_Close.blp",
+    iconSettings = "Interface/AddOns/LiqUI/Media/Icon_Settings.blp",
   },
   colors = {
     primary = { r = 0.2, g = 0.6, b = 1.0, a = 1.0 },

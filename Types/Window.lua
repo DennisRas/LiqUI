@@ -51,6 +51,7 @@
 ---@field windowScale number?
 ---@field windowColor ColorTable?
 ---@field titlebarButtons LiqUI_WindowTitlebarButton[]?
+---@field onSettingsMenu fun(window: LiqUI_WindowInstance, rootMenu: table)?
 ---@field onClose fun(window: LiqUI_WindowInstance)?
 ---@field onShow fun(window: LiqUI_WindowInstance)?
 
