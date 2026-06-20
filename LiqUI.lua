@@ -21,13 +21,14 @@ function LiqUI.BindManager(instance, prototype, state)
     manager.embed = instance
   end
   setmetatable(manager, {
-    __index = function(_, key)
+    __index = function(managerTable, key)
       local value = prototype[key]
       if value ~= nil then
         return value
       end
-      if instance then
-        return instance[key]
+      local embed = managerTable.embed
+      if embed then
+        return embed[key]
       end
     end,
   })
