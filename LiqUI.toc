@@ -1,7 +1,7 @@
-## Interface: 120000, 120001
+## Interface: 120005
 ## Title: LiqUI
 ## Notes: Shared UI library for Liq addons
-## Version: 1.0.0
+## Version: v1.0.0
 ## Author: Liquidor (EU Silvermoon)
 ## X-Website: https://github.com/DennisRas/LiqUI
 ## Category: Library
@@ -11,10 +11,10 @@ Libs/LibStub/LibStub.lua
 LiqUI.xml
 
 #@debug@
-Debug\Types\Window.lua
-Debug\Types\Table.lua
-Debug\Types\Scroll.lua
-Debug\Types\Logger.lua
 Debug\Types\Addon.lua
+Debug\Types\Logger.lua
+Debug\Types\Scroll.lua
+Debug\Types\Table.lua
+Debug\Types\Window.lua
 Debug\Tests\Gallery.lua
 #@end-debug@

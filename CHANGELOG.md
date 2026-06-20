@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.0.0 - TBD
+## v1.0.0 - 2026-06-20
 
 - Added reusable window layout with titlebar, resize, optional sidebar, progress overlay, and empty-state placeholder text.
 - Added per-window scale, background color, border, and screen position persistence.
