@@ -11,10 +11,10 @@ Libs/LibStub/LibStub.lua
 LiqUI.xml
 
 #@debug@
-Developer\Types\Window.lua
-Developer\Types\Table.lua
-Developer\Types\Scroll.lua
-Developer\Types\Logger.lua
-Developer\Types\Addon.lua
-Developer\Tests\Gallery.lua
+Debug\Types\Window.lua
+Debug\Types\Table.lua
+Debug\Types\Scroll.lua
+Debug\Types\Logger.lua
+Debug\Types\Addon.lua
+Debug\Tests\Gallery.lua
 #@end-debug@
