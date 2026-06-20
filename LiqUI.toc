@@ -11,5 +11,5 @@ Libs/LibStub/LibStub.lua
 LiqUI.xml
 
 #@debug@
-Tests/Gallery.lua
+Developer/Tests/Gallery.lua
 #@end-debug@
