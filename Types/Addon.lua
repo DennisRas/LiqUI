@@ -1,3 +1,12 @@
+---@alias ColorTable { r: number, g: number, b: number, a: number }
+
+---@class LiqUI_Constants
+
+---@class LiqUI_DB
+---@field windows table<string, LiqUI_WindowDB>
+---@field tables table<string, LiqUI_TableDB>
+---@field loggers table<string, LiqUI_LoggerDB>
+
 ---@class LiqUI_Instance
 ---@field name string
 ---@field db LiqUI_DB
