@@ -46,7 +46,7 @@
 ---@field name string?
 ---@field title string?
 ---@field icon string?
----@field point table?
+---@field point LiqUI_WindowPointPersisted?
 ---@field width number?
 ---@field height number?
 ---@field titlebar boolean?

@@ -104,7 +104,7 @@ end
 
 ---@param instance LiqUI_Instance
 function Table:Embed(instance)
-  instance.Table = LiqUI.BindManager(instance, self, { instances = {} })
+  instance.Table = LiqUI.BindManager(instance, self, {instances = {}})
 end
 
 ---Create a new table frame
@@ -169,24 +169,27 @@ function Table:New(options)
     validateSortingColumns(mergedOptions.columns, mergedOptions.sorting)
   end
 
-  if not self.db.tables[isntanceName] then
+  ---@type LiqUI_TableDB
+  local tableDb = self.db.tables[isntanceName]
+  if not tableDb then
     ---@type LiqUI_TableDB
-    self.db.tables[isntanceName] = {
-      hiddenColumns = {},
-    }
+    tableDb = { hiddenColumns = {} }
+    self.db.tables[isntanceName] = tableDb
   end
 
-  if self.db.tables[isntanceName].sortState then
-    mergedOptions.sorting.savedState = self.db.tables[isntanceName].sortState
-  end
-  if not mergedOptions.sorting.onStateChanged then
-    mergedOptions.sorting.onStateChanged = function(state)
-      self.db.tables[isntanceName].sortState = state
+  if sorting then
+    if tableDb.sortState then
+      sorting.savedState = tableDb.sortState
+    end
+    if not sorting.onStateChanged then
+      sorting.onStateChanged = function(state)
+        tableDb.sortState = state
+      end
     end
   end
 
   frame.options = mergedOptions
-  frame.db = self.db.tables[isntanceName]
+  frame.db = tableDb
   frame.data = {}
   frame.rowFrames = {}
   frame.sortState = { columnId = nil, direction = nil }
@@ -343,13 +346,13 @@ function Table:New(options)
     local sortingEnabled = sortingConfig and sortingConfig.enabled
     local activeColumns = self:GetActiveColumns()
 
-    local headerEnabled = headerConfig.enabled
-    local headerSticky = headerConfig.sticky
-    local defaultRowHeight = rowStyle.height or LiqUI.Constants.layout.sizes.row
+    local headerEnabled = headerConfig and headerConfig.enabled
+    local headerSticky = headerConfig and headerConfig.sticky
+    local defaultRowHeight = (rowStyle and rowStyle.height) or LiqUI.Constants.layout.sizes.row
     local defaultColumnWidth = LiqUI.Constants.layout.sizes.column
-    local headerHeight = headerConfig.height or LiqUI.Constants.layout.sizes.header
+    local headerHeight = (headerConfig and headerConfig.height) or LiqUI.Constants.layout.sizes.header
     local defaultPadding = (cellStyle and cellStyle.padding) or LiqUI.Constants.layout.sizes.padding
-    local defaultHeaderFont = headerConfig.fontObject or "GameFontNormalSmall"
+    local defaultHeaderFont = (headerConfig and headerConfig.fontObject) or "GameFontNormalSmall"
     local defaultCellFont = cellStyle and cellStyle.fontObject or "GameFontHighlightSmall"
 
     local layoutWidth = 0
@@ -503,7 +506,7 @@ function Table:New(options)
 
       if rowData.backgroundColor then
         SetBackgroundColor(rowFrame, rowData.backgroundColor)
-      elseif rowStyle.striped and rowIndex % 2 == 1 then
+      elseif rowStyle and rowStyle.striped and rowIndex % 2 == 1 then
         SetBackgroundColor(rowFrame, 1, 1, 1, 0.02)
       else
         SetBackgroundColor(rowFrame, 0, 0, 0, 0)
@@ -560,7 +563,7 @@ function Table:New(options)
         end
 
         bodyCellFrame:SetScript("OnEnter", function()
-          if rowStyle.highlight then
+          if rowStyle and rowStyle.highlight then
             SetHighlightColor(rowFrame, 1, 1, 1, 0.05)
           end
           if cellStyle and cellStyle.highlight then
@@ -574,7 +577,7 @@ function Table:New(options)
           end
         end)
         bodyCellFrame:SetScript("OnLeave", function()
-          if rowStyle.highlight then
+          if rowStyle and rowStyle.highlight then
             SetHighlightColor(rowFrame, 1, 1, 1, 0)
           end
           if cellStyle and cellStyle.highlight then
@@ -681,7 +684,10 @@ function Table:New(options)
 
   ---@param height number
   function frame:SetRowHeight(height)
-    self.options.rowStyle.height = height
+    local rowStyle = self.options.rowStyle
+    if rowStyle then
+      rowStyle.height = height
+    end
     if self.scrollArea then
       self.scrollArea:SetWheelPanExtent(height)
     end
@@ -712,7 +718,7 @@ function Table:New(options)
     name = "$parentScrollArea",
     vertical = true,
     horizontal = false,
-    wheelPanExtent = frame.options.rowStyle.height or LiqUI.Constants.layout.sizes.row,
+    wheelPanExtent = (frame.options.rowStyle and frame.options.rowStyle.height) or LiqUI.Constants.layout.sizes.row,
   })
 
   frame.scrollArea:HookScript("OnSizeChanged", function()

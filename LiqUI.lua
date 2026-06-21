@@ -1,6 +1,6 @@
 assert(LibStub, "LiqUI requires LibStub")
 
-local MAJOR, MINOR = "LiqUI-1.0", 1
+local MAJOR, MINOR = "LiqUI-1.0", 2
 ---@class LiqUI
 local LiqUI = LibStub:NewLibrary(MAJOR, MINOR)
 if not LiqUI then
@@ -11,10 +11,11 @@ LiqUI.minor = MINOR
 
 _G.LiqUI = LiqUI
 
+---@generic T
 ---@param instance LiqUI_Instance?
----@param prototype table
+---@param prototype T
 ---@param state table?
----@return table
+---@return T
 function LiqUI.BindManager(instance, prototype, state)
   local manager = state or {}
   if instance then

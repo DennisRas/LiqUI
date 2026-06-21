@@ -139,6 +139,14 @@ Constants.layout = {
     primary = { r = 0.2, g = 0.6, b = 1.0, a = 1.0 },
     header = { r = 0, g = 0, b = 0, a = 0.3 },
   },
+  overlay = {
+    textInset = 40,
+    defaultFontObject = "GameFontHighlight",
+  },
+  defaultWindowPoint = {
+    main = {"TOPLEFT", "TOPLEFT", 30, -30},
+    secondary = {"TOPLEFT", "TOPLEFT", 300, -300},
+  },
   defaultWindowColor = { r = 0.11372549019, g = 0.14117647058, b = 0.16470588235, a = 1 },
 }
 

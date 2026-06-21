@@ -80,14 +80,14 @@
 
 ---@class LiqUI_TableDB
 ---@field sortState LiqUI_TableSortState?
----@field hiddenColumns table<string, boolean>?
+---@field hiddenColumns table<string, boolean>
 
 ---@class LiqUI_TableLayoutSize
 ---@field shownWidth number
 ---@field shownHeight number
 
 ---@class LiqUI_Table
----@field embed LiqUI_Instance
+---@field embed LiqUI_Instance?
 ---@field instances table<string, LiqUI_TableInstance>
 
 ---@class LiqUI_TableCellFrame : Button
@@ -107,5 +107,5 @@
 ---@field rowFrames table<integer, LiqUI_TableRowFrame>
 ---@field scrollArea LiqUI_ScrollArea
 ---@field layoutSize LiqUI_TableLayoutSize
----@field db LiqUI_TableDB|nil
+---@field db LiqUI_TableDB
 ---@field sortState LiqUI_TableSortState

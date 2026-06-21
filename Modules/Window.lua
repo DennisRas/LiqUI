@@ -4,9 +4,6 @@ if not LiqUI then
   return
 end
 
-local OVERLAY_TEXT_INSET = 40
-local DEFAULT_OVERLAY_FONT = "GameFontHighlight"
-
 ---@class LiqUI_Window
 local Window = {}
 LiqUI.Window = Window
@@ -18,42 +15,10 @@ local TableFind = LiqUI.Utils.TableFind
 local TableMergeOptions = LiqUI.Utils.TableMergeOptions
 
 ---@param window LiqUI_WindowInstance
----@param showOptions LiqUI_WindowOverlayOptions|nil
----@return string
-local function resolveOverlayFontObject(window, showOptions)
-  if showOptions and showOptions.fontObject then
-    return showOptions.fontObject
-  end
-  if window.options.overlayFontObject then
-    return window.options.overlayFontObject
-  end
-  return DEFAULT_OVERLAY_FONT
-end
-
----@param window LiqUI_WindowInstance
----@param showOptions LiqUI_WindowOverlayOptions|nil
----@return ColorTable|nil
-local function resolveOverlayTextColor(window, showOptions)
-  if showOptions and showOptions.textColor then
-    return showOptions.textColor
-  end
-  if window.options.overlayTextColor then
-    return window.options.overlayTextColor
-  end
-  return nil
-end
-
----@param window LiqUI_WindowInstance
----@param showOptions LiqUI_WindowOverlayOptions|nil
----@return ColorTable
-local function resolveOverlayBackgroundColor(window, showOptions)
-  if showOptions and showOptions.backgroundColor then
-    return showOptions.backgroundColor
-  end
-  if window.options.overlayBackgroundColor then
-    return window.options.overlayBackgroundColor
-  end
-  return window:GetWindowColor()
+local function updateWindowClampInsets(window)
+  local width = window:GetWidth()
+  local height = window:GetHeight()
+  window:SetClampRectInsets(width / 2, -width / 2, 0, height / 2)
 end
 
 ---@param window LiqUI_WindowInstance
@@ -61,7 +26,7 @@ local function applyOverlayTextWidth(window)
   if not window.overlay or not window.overlay.text then
     return
   end
-  local textWidth = math.max(0, window.overlay:GetWidth() - OVERLAY_TEXT_INSET * 2)
+  local textWidth = math.max(0, window.overlay:GetWidth() - LiqUI.Constants.layout.overlay.textInset * 2)
   window.overlay.text:SetWidth(textWidth)
   window.overlay.bar:SetWidth(math.min(280, textWidth))
 end
@@ -72,30 +37,61 @@ local function applyOverlayStyle(window, showOptions)
   if not window.overlay then
     return
   end
-  window.overlay.text:SetFontObject(resolveOverlayFontObject(window, showOptions))
-  local textColor = resolveOverlayTextColor(window, showOptions)
+  local fontObject = LiqUI.Constants.layout.overlay.defaultFontObject
+  if showOptions and showOptions.fontObject then
+    fontObject = showOptions.fontObject
+  elseif window.options.overlayFontObject then
+    fontObject = window.options.overlayFontObject
+  end
+  window.overlay.text:SetFontObject(fontObject)
+  local textColor = showOptions and showOptions.textColor or window.options.overlayTextColor
   if textColor then
     window.overlay.text:SetVertexColor(textColor.r, textColor.g, textColor.b, textColor.a or 1)
   else
     window.overlay.text:SetVertexColor(1, 1, 1, 1)
   end
-  local backgroundColor = resolveOverlayBackgroundColor(window, showOptions)
+  local backgroundColor = showOptions and showOptions.backgroundColor or window.options.overlayBackgroundColor
+    or window:GetWindowColor()
   SetBackgroundColor(window.overlay, backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a)
 end
 
-local function applyWindowPoint(window, point)
-  if not point or type(point) ~= "table" then
-    return
+---@param window LiqUI_WindowInstance
+---@return number|nil topLeftX
+---@return number|nil topLeftY
+local function getWindowTopLeftOffset(window)
+  local left, top = window:GetLeft(), window:GetTop()
+  if not left or not top then
+    return nil, nil
   end
+  local parentLeft, parentTop = UIParent:GetLeft(), UIParent:GetTop()
+  if not parentLeft or not parentTop then
+    return nil, nil
+  end
+  return left - parentLeft, top - parentTop
+end
+
+---@param window LiqUI_WindowInstance
+---@param topLeftX number
+---@param topLeftY number
+local function applyWindowTopLeft(window, topLeftX, topLeftY)
   window:ClearAllPoints()
-  local count = #point
-  if count == 1 then
-    window:SetPoint(point[1])
-  elseif count == 4 then
-    window:SetPoint(point[1], UIParent, point[2], point[3], point[4])
-  elseif count >= 5 then
-    window:SetPoint(unpack(point))
+  window:SetPoint("TOPLEFT", UIParent, "TOPLEFT", topLeftX, topLeftY)
+end
+
+---@param point table|nil
+---@return number|nil topLeftX
+---@return number|nil topLeftY
+local function readWindowTopLeftPoint(point)
+  if not point or type(point) ~= "table" then
+    return nil, nil
   end
+  if point[1] ~= "TOPLEFT" or point[2] ~= "TOPLEFT" then
+    return nil, nil
+  end
+  if not point[3] or not point[4] then
+    return nil, nil
+  end
+  return point[3], point[4]
 end
 
 local function repositionTitlebarButtons(window)
@@ -121,15 +117,6 @@ local function applyWindowContentLayout(frame, window, topOffset)
   frame:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, topOffset)
   frame:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", 0, 0)
   frame:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", 0, 0)
-end
-
----@param window LiqUI_WindowInstance
----@return number
-local function getWindowContentTopOffset(window)
-  if window.options.titlebar then
-    return -LiqUI.Constants.layout.sizes.titlebar.height
-  end
-  return 0
 end
 
 ---@param instance LiqUI_Instance
@@ -166,12 +153,23 @@ function Window:New(options)
     titlebar = true,
     windowScale = 100,
     windowColor = LiqUI.Constants.layout.defaultWindowColor,
-    point = {"CENTER"},
   }
   ---@type LiqUI_WindowOptions
   local mergedOptions = {}
   TableMergeOptions(mergedOptions, defaultOptions)
   TableMergeOptions(mergedOptions, options)
+
+  if options.point == nil then
+    local defaultPoint = windowName == "Main"
+      and LiqUI.Constants.layout.defaultWindowPoint.main
+      or LiqUI.Constants.layout.defaultWindowPoint.secondary
+    mergedOptions.point = {
+      defaultPoint[1],
+      defaultPoint[2],
+      defaultPoint[3],
+      defaultPoint[4],
+    }
+  end
 
   if not self.db.windows[windowName] then
     ---@type LiqUI_WindowDB
@@ -188,15 +186,26 @@ function Window:New(options)
   window:SetFrameLevel(3000)
   window:SetToplevel(true)
   window:SetMovable(true)
-  applyWindowPoint(window, window.options.point)
+  local initialTopLeftX, initialTopLeftY = readWindowTopLeftPoint(window.options.point)
+  if initialTopLeftX and initialTopLeftY then
+    applyWindowTopLeft(window, initialTopLeftX, initialTopLeftY)
+  end
   window:SetSize(window.options.width or 300, window.options.height or 300)
-  window:EnableMouse(true) -- Disable click-throughs
+  window:EnableMouse(true)
   window:SetParent(window.options.parent)
   window:SetClampedToScreen(true)
-  window:SetClampRectInsets(window:GetWidth() / 2, window:GetWidth() / -2, 0, window:GetHeight() / 2)
   window:SetScript("OnSizeChanged", function()
-    window:SetClampRectInsets(window:GetWidth() / 2, window:GetWidth() / -2, 0, window:GetHeight() / 2)
+    updateWindowClampInsets(window)
   end)
+  updateWindowClampInsets(window)
+
+  ---Hide the window and run the close handler
+  function window:Close()
+    self:Hide()
+    if self.options.onClose then
+      self.options.onClose(self)
+    end
+  end
 
   ---Show or hide the window
   ---@param state boolean?
@@ -223,7 +232,11 @@ function Window:New(options)
     if window.options.titlebar then
       h = h + LiqUI.Constants.layout.sizes.titlebar.height
     end
+    local topLeftX, topLeftY = getWindowTopLeftOffset(window)
     window:SetSize(w, h)
+    if topLeftX and topLeftY then
+      applyWindowTopLeft(window, topLeftX, topLeftY)
+    end
   end
 
   ---@param text string|nil
@@ -430,10 +443,12 @@ function Window:New(options)
     end
     window.options.windowScale = settings.scale or 100
     window:SetScale((settings.scale or 100) / 100)
-    local point = settings.point or window.options.point
-    if point then
-      window.options.point = point
-      applyWindowPoint(window, point)
+    local topLeftX, topLeftY = readWindowTopLeftPoint(settings.point)
+    if not topLeftX or not topLeftY then
+      topLeftX, topLeftY = readWindowTopLeftPoint(window.options.point)
+    end
+    if topLeftX and topLeftY then
+      applyWindowTopLeft(window, topLeftX, topLeftY)
     end
     if window.border then
       window.border:SetShown(settings.border ~= false)
@@ -445,9 +460,15 @@ function Window:New(options)
     if not settings then
       return
     end
-    local point, relativeTo, relativePoint, x, y = window:GetPoint()
+    local _, relativeTo = window:GetPoint()
     if not relativeTo or relativeTo == UIParent then
-      settings.point = {point, relativePoint, x, y}
+      local topLeftX, topLeftY = getWindowTopLeftOffset(window)
+      if not topLeftX or not topLeftY then
+        local fallbackX, fallbackY = readWindowTopLeftPoint(window.options.point)
+        settings.point = {"TOPLEFT", "TOPLEFT", fallbackX or 0, fallbackY or 0}
+      else
+        settings.point = {"TOPLEFT", "TOPLEFT", topLeftX, topLeftY}
+      end
     end
     settings.scale = math.floor(window:GetScale() * 100 + 0.5)
     if window.options.windowColor then
@@ -460,7 +481,6 @@ function Window:New(options)
 
   function window:Render()
     window:ApplySettings()
-    window:SetClampRectInsets(window:GetWidth() / 2, window:GetWidth() / -2, 0, window:GetHeight() / 2)
   end
 
   ---@param rootMenu table
@@ -586,10 +606,7 @@ function Window:New(options)
                                         LiqUI.Constants.layout.sizes.titlebar.height)
     window.titlebar.CloseButton:RegisterForClicks("AnyUp")
     window.titlebar.CloseButton:SetScript("OnClick", function()
-      window:Hide()
-      if window.options.onClose then
-        window.options.onClose(window)
-      end
+      window:Close()
     end)
     window.titlebar.CloseButton.Icon = window.titlebar:CreateTexture("$parentIcon", "ARTWORK")
     window.titlebar.CloseButton.Icon:SetPoint("CENTER", window.titlebar.CloseButton, "CENTER")
@@ -646,7 +663,7 @@ function Window:New(options)
     window.titlebar.SettingsButton:Show()
   end
 
-  local topOffset = getWindowContentTopOffset(window)
+  local topOffset = window.options.titlebar and -LiqUI.Constants.layout.sizes.titlebar.height or 0
 
   -- Body
   window.body = CreateFrame("Frame", "$parentBody", window)
@@ -664,7 +681,7 @@ function Window:New(options)
       applyOverlayTextWidth(window)
     end)
 
-    overlay.text = overlay:CreateFontString(nil, "OVERLAY", DEFAULT_OVERLAY_FONT)
+    overlay.text = overlay:CreateFontString(nil, "OVERLAY", LiqUI.Constants.layout.overlay.defaultFontObject)
     overlay.text:SetPoint("CENTER")
     overlay.text:SetWordWrap(true)
     overlay.text:SetJustifyH("CENTER")
@@ -706,7 +723,6 @@ function Window:New(options)
   end)
 
   window:Render()
-  window:Hide()
   table.insert(UISpecialFrames, window:GetName())
   self.instances[windowName] = window
   return window
@@ -731,9 +747,5 @@ function Window:ToggleWindow(name)
   if name == nil or name == "" then name = "Main" end
   local window = self:GetWindow(name)
   if not window then return end
-  if window:IsVisible() then
-    window:Hide()
-  else
-    window:Show()
-  end
+  window:Toggle()
 end

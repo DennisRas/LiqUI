@@ -510,7 +510,6 @@ function Settings:Init()
   local window = liqui.Window:New({
     name = "LiqUISettings",
     title = "Settings",
-    point = { "CENTER", 0, 0 },
   })
   window:SetBodySize(s.windowWidth, s.windowHeight)
   local body = window.body
