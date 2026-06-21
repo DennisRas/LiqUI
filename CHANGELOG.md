@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.1 - TBD
+
+- Removed optional sidebar from the reusable window layout.
+- Updated window sizing so the width you set matches the main content area only.
+- Added a unified window overlay for empty states, loading text, and optional progress.
+- Updated window overlay to replace the body while shown so resized content does not paint outside the window.
+
 ## v1.0.0 - 2026-06-20
 
 - Added reusable window layout with titlebar, resize, optional sidebar, progress overlay, and empty-state placeholder text.

@@ -4,7 +4,8 @@ if not LiqUI then
   return
 end
 
-local BODY_PLACEHOLDER_TEXT_INSET = 40
+local OVERLAY_TEXT_INSET = 40
+local DEFAULT_OVERLAY_FONT = "GameFontHighlight"
 
 ---@class LiqUI_Window
 local Window = {}
@@ -15,6 +16,72 @@ local TableCopy = LiqUI.Utils.TableCopy
 local TableFilter = LiqUI.Utils.TableFilter
 local TableFind = LiqUI.Utils.TableFind
 local TableMergeOptions = LiqUI.Utils.TableMergeOptions
+
+---@param window LiqUI_WindowInstance
+---@param showOptions LiqUI_WindowOverlayOptions|nil
+---@return string
+local function resolveOverlayFontObject(window, showOptions)
+  if showOptions and showOptions.fontObject then
+    return showOptions.fontObject
+  end
+  if window.options.overlayFontObject then
+    return window.options.overlayFontObject
+  end
+  return DEFAULT_OVERLAY_FONT
+end
+
+---@param window LiqUI_WindowInstance
+---@param showOptions LiqUI_WindowOverlayOptions|nil
+---@return ColorTable|nil
+local function resolveOverlayTextColor(window, showOptions)
+  if showOptions and showOptions.textColor then
+    return showOptions.textColor
+  end
+  if window.options.overlayTextColor then
+    return window.options.overlayTextColor
+  end
+  return nil
+end
+
+---@param window LiqUI_WindowInstance
+---@param showOptions LiqUI_WindowOverlayOptions|nil
+---@return ColorTable
+local function resolveOverlayBackgroundColor(window, showOptions)
+  if showOptions and showOptions.backgroundColor then
+    return showOptions.backgroundColor
+  end
+  if window.options.overlayBackgroundColor then
+    return window.options.overlayBackgroundColor
+  end
+  return window:GetWindowColor()
+end
+
+---@param window LiqUI_WindowInstance
+local function applyOverlayTextWidth(window)
+  if not window.overlay or not window.overlay.text then
+    return
+  end
+  local textWidth = math.max(0, window.overlay:GetWidth() - OVERLAY_TEXT_INSET * 2)
+  window.overlay.text:SetWidth(textWidth)
+  window.overlay.bar:SetWidth(math.min(280, textWidth))
+end
+
+---@param window LiqUI_WindowInstance
+---@param showOptions LiqUI_WindowOverlayOptions|nil
+local function applyOverlayStyle(window, showOptions)
+  if not window.overlay then
+    return
+  end
+  window.overlay.text:SetFontObject(resolveOverlayFontObject(window, showOptions))
+  local textColor = resolveOverlayTextColor(window, showOptions)
+  if textColor then
+    window.overlay.text:SetVertexColor(textColor.r, textColor.g, textColor.b, textColor.a or 1)
+  else
+    window.overlay.text:SetVertexColor(1, 1, 1, 1)
+  end
+  local backgroundColor = resolveOverlayBackgroundColor(window, showOptions)
+  SetBackgroundColor(window.overlay, backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a)
+end
 
 local function applyWindowPoint(window, point)
   if not point or type(point) ~= "table" then
@@ -44,6 +111,25 @@ local function repositionTitlebarButtons(window)
     titlebarButton:SetPoint("RIGHT", anchorFrame, "LEFT", 0, 0)
     anchorFrame = titlebarButton
   end
+end
+
+---@param frame Frame
+---@param window LiqUI_WindowInstance
+---@param topOffset number
+local function applyWindowContentLayout(frame, window, topOffset)
+  frame:SetPoint("TOPLEFT", window, "TOPLEFT", 0, topOffset)
+  frame:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, topOffset)
+  frame:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", 0, 0)
+  frame:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", 0, 0)
+end
+
+---@param window LiqUI_WindowInstance
+---@return number
+local function getWindowContentTopOffset(window)
+  if window.options.titlebar then
+    return -LiqUI.Constants.layout.sizes.titlebar.height
+  end
+  return 0
 end
 
 ---@param instance LiqUI_Instance
@@ -134,30 +220,51 @@ function Window:New(options)
   function window:SetBodySize(width, height)
     local w = width
     local h = height
-    if window.options.sidebar then
-      w = w + window.options.sidebar
-    end
     if window.options.titlebar then
       h = h + LiqUI.Constants.layout.sizes.titlebar.height
     end
     window:SetSize(w, h)
   end
 
-  ---Show centered placeholder text over the body.
-  ---@param text string
-  function window:ShowBodyPlaceholder(text)
-    if not window.body then
+  ---@param text string|nil
+  ---@param progress number|nil 0-1; omit to hide the bar.
+  ---@param showOptions LiqUI_WindowOverlayOptions|nil
+  function window:ShowOverlay(text, progress, showOptions)
+    if not window.overlay then
       return
     end
-    local placeholder = Window:GetBodyPlaceholderText(window.body)
-    placeholder:SetText(text or "")
-    placeholder:Show()
+    window.overlayLastShowOptions = showOptions
+    applyOverlayStyle(window, showOptions)
+    applyOverlayTextWidth(window)
+    window.overlay.text:SetText(text or "")
+    if progress ~= nil then
+      window.overlay.bar:Show()
+      window.overlay.bar:SetValue(math.max(0, math.min(1, progress)))
+      window.overlay.text:ClearAllPoints()
+      window.overlay.text:SetPoint("CENTER", window.overlay, "CENTER", 0, -10)
+    else
+      window.overlay.bar:Hide()
+      window.overlay.text:ClearAllPoints()
+      window.overlay.text:SetPoint("CENTER", window.overlay, "CENTER", 0, 0)
+    end
+    window.overlay:Show()
+    if window.body then
+      window.body:Hide()
+    end
   end
 
-  function window:HideBodyPlaceholder()
-    if window.body and window.body.placeholderText then
-      window.body.placeholderText:Hide()
+  function window:HideOverlay()
+    if window.overlay then
+      window.overlay:Hide()
     end
+    if window.body then
+      window.body:Show()
+    end
+  end
+
+  ---@return boolean
+  function window:IsOverlayShown()
+    return window.overlay ~= nil and window.overlay:IsShown()
   end
 
   ---Add a button to the titlebar
@@ -257,34 +364,6 @@ function Window:New(options)
     return TableFind(window.titlebarButtons, function(button) return button:GetName() == buttonName end)
   end
 
-  ---@param text string|nil
-  ---@param progress number|nil 0–1; omit to hide the bar (text only).
-  function window:SetProgressOverlay(text, progress)
-    window.progressOverlay.text:SetText(text or "")
-    if progress ~= nil then
-      window.progressOverlay.bar:Show()
-      window.progressOverlay.bar:SetValue(math.max(0, math.min(1, progress)))
-    else
-      window.progressOverlay.bar:Hide()
-    end
-  end
-
-  ---@param text string|nil
-  ---@param progress number|nil
-  function window:ShowProgressOverlay(text, progress)
-    window:SetProgressOverlay(text, progress)
-    window.progressOverlay:Show()
-  end
-
-  function window:HideProgressOverlay()
-    window.progressOverlay:Hide()
-  end
-
-  ---@return boolean
-  function window:IsProgressOverlayShown()
-    return window.progressOverlay:IsShown()
-  end
-
   ---@return number
   function window:GetWindowScale()
     if not window.db then
@@ -345,9 +424,8 @@ function Window:New(options)
       window.options.windowColor = settings.windowColor
       SetBackgroundColor(window, settings.windowColor.r, settings.windowColor.g, settings.windowColor.b,
                          settings.windowColor.a)
-      if window.progressOverlay then
-        SetBackgroundColor(window.progressOverlay, settings.windowColor.r, settings.windowColor.g, settings.windowColor
-                           .b, settings.windowColor.a)
+      if window.overlay and window.overlay:IsShown() then
+        applyOverlayStyle(window, window.overlayLastShowOptions)
       end
     end
     window.options.windowScale = settings.scale or 100
@@ -568,32 +646,44 @@ function Window:New(options)
     window.titlebar.SettingsButton:Show()
   end
 
-  local topOffset = 0
-  local leftOffset = 0
-
-  if window.options.titlebar then
-    topOffset = -LiqUI.Constants.layout.sizes.titlebar.height
-  end
-
-  if window.options.sidebar then
-    leftOffset = window.options.sidebar
-  end
+  local topOffset = getWindowContentTopOffset(window)
 
   -- Body
   window.body = CreateFrame("Frame", "$parentBody", window)
-  window.body:SetPoint("TOPLEFT", window, "TOPLEFT", leftOffset, topOffset)
-  window.body:SetPoint("TOPRIGHT", window, "TOPRIGHT", 0, topOffset)
-  window.body:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", leftOffset, 0)
-  window.body:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", 0, 0)
+  applyWindowContentLayout(window.body, window, topOffset)
   SetBackgroundColor(window.body, 0, 0, 0, 0)
 
-  -- Sidebar
-  if window.options.sidebar then
-    window.sidebar = CreateFrame("Frame", "$parentSidebar", window)
-    window.sidebar:SetPoint("TOPLEFT", window, "TOPLEFT", 0, topOffset)
-    window.sidebar:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT")
-    window.sidebar:SetWidth(window.options.sidebar)
-    SetBackgroundColor(window.sidebar, 0, 0, 0, 0.3)
+  do
+    local overlay = CreateFrame("Frame", "$parentOverlay", window)
+    window.overlay = overlay
+    applyWindowContentLayout(overlay, window, topOffset)
+    overlay:SetFrameLevel(window.body:GetFrameLevel() + 20)
+    overlay:EnableMouse(true)
+    overlay:Hide()
+    overlay:SetScript("OnSizeChanged", function()
+      applyOverlayTextWidth(window)
+    end)
+
+    overlay.text = overlay:CreateFontString(nil, "OVERLAY", DEFAULT_OVERLAY_FONT)
+    overlay.text:SetPoint("CENTER")
+    overlay.text:SetWordWrap(true)
+    overlay.text:SetJustifyH("CENTER")
+    overlay.text:SetJustifyV("MIDDLE")
+
+    overlay.bar = CreateFrame("StatusBar", "$parentBar", overlay)
+    overlay.bar:SetPoint("TOP", overlay.text, "BOTTOM", 0, -12)
+    overlay.bar:SetHeight(14)
+    overlay.bar:SetFrameLevel(overlay:GetFrameLevel() + 1)
+    overlay.bar:SetStatusBarTexture(LiqUI.Constants.layout.media.whiteSquare)
+    overlay.bar:SetMinMaxValues(0, 1)
+    overlay.bar:SetValue(0)
+    local barFill = LiqUI.Constants.layout.colors.primary
+    overlay.bar:SetStatusBarColor(barFill.r, barFill.g, barFill.b, barFill.a)
+    overlay.bar.background = overlay.bar:CreateTexture(nil, "BACKGROUND")
+    overlay.bar.background:SetAllPoints()
+    overlay.bar.background:SetTexture(LiqUI.Constants.layout.media.whiteSquare)
+    overlay.bar.background:SetVertexColor(0, 0, 0, 0.5)
+    overlay.bar:Hide()
   end
 
   if window.options.titlebarButtons then
@@ -602,50 +692,6 @@ function Window:New(options)
     end
   elseif window.titlebar and window.titlebar.SettingsButton then
     repositionTitlebarButtons(window)
-  end
-
-  local contentTopOffset = topOffset
-
-  do
-    local overlayLevel = window.body:GetFrameLevel() + 20
-    if window.sidebar then
-      overlayLevel = math.max(overlayLevel, window.sidebar:GetFrameLevel() + 20)
-    end
-
-    local progressOverlay = CreateFrame("Frame", "$parentProgressOverlay", window)
-    window.progressOverlay = progressOverlay
-    progressOverlay:SetPoint("TOPLEFT", window, "TOPLEFT", 0, contentTopOffset)
-    progressOverlay:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", 0, 0)
-    progressOverlay:SetFrameLevel(overlayLevel)
-    progressOverlay:EnableMouse(true)
-    progressOverlay:Hide()
-    SetBackgroundColor(progressOverlay, window.options.windowColor.r, window.options.windowColor.g,
-                       window.options.windowColor.b, window.options.windowColor.a)
-
-    progressOverlay.content = CreateFrame("Frame", "$parentContent", progressOverlay)
-    progressOverlay.content:SetSize(320, 48)
-    progressOverlay.content:SetPoint("CENTER")
-    progressOverlay.content:SetFrameLevel(progressOverlay:GetFrameLevel() + 2)
-
-    progressOverlay.text = progressOverlay.content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    progressOverlay.text:SetPoint("TOP", progressOverlay.content, "TOP", 0, 0)
-    progressOverlay.text:SetWidth(300)
-    progressOverlay.text:SetWordWrap(true)
-    progressOverlay.text:SetJustifyH("CENTER")
-
-    progressOverlay.bar = CreateFrame("StatusBar", "$parentBar", progressOverlay.content)
-    progressOverlay.bar:SetPoint("TOP", progressOverlay.text, "BOTTOM", 0, -12)
-    progressOverlay.bar:SetSize(280, 14)
-    progressOverlay.bar:SetFrameLevel(progressOverlay.content:GetFrameLevel() + 1)
-    progressOverlay.bar:SetStatusBarTexture(LiqUI.Constants.layout.media.whiteSquare)
-    progressOverlay.bar:SetMinMaxValues(0, 1)
-    progressOverlay.bar:SetValue(0)
-    local barFill = LiqUI.Constants.layout.colors.primary
-    progressOverlay.bar:SetStatusBarColor(barFill.r, barFill.g, barFill.b, barFill.a)
-    progressOverlay.bar.background = progressOverlay.bar:CreateTexture(nil, "BACKGROUND")
-    progressOverlay.bar.background:SetAllPoints()
-    progressOverlay.bar.background:SetTexture(LiqUI.Constants.layout.media.whiteSquare)
-    progressOverlay.bar.background:SetVertexColor(0, 0, 0, 0.5)
   end
 
   if window.options.width and window.options.height then
@@ -671,20 +717,6 @@ end
 ---@return LiqUI_WindowInstance?
 function Window:GetWindow(name)
   return self.instances[name]
-end
-
----Centered placeholder text for module windows without a full layout yet.
----@param body LiqUI_WindowBody
----@return FontString
-function Window:GetBodyPlaceholderText(body)
-  if not body.placeholderText then
-    body.placeholderText = body:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    body.placeholderText:SetPoint("CENTER")
-    body.placeholderText:SetWidth(body:GetWidth() - BODY_PLACEHOLDER_TEXT_INSET)
-    body.placeholderText:SetWordWrap(true)
-    body.placeholderText:SetJustifyH("CENTER")
-  end
-  return body.placeholderText
 end
 
 ---Get the maximum window width based on current screen width

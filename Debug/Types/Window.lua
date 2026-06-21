@@ -20,15 +20,14 @@
 ---@field db LiqUI_WindowDB|nil
 ---@field titlebar Frame?
 ---@field body LiqUI_WindowBody?
----@field sidebar Frame?
+---@field overlay LiqUI_WindowOverlay?
+---@field overlayLastShowOptions LiqUI_WindowOverlayOptions|nil
 ---@field border Frame?
----@field progressOverlay LiqUI_WindowProgressOverlay?
 ---@field titlebarButtons Frame[]
 ---@field width number?
 ---@field height number?
 
 ---@class LiqUI_WindowBody : Frame
----@field placeholderText FontString?
 ---@field scrollArea LiqUI_ScrollArea?
 
 ---@class LiqUI_WindowDB
@@ -36,6 +35,11 @@
 ---@field scale number?
 ---@field windowColor ColorTable?
 ---@field border boolean?
+
+---@class LiqUI_WindowOverlayOptions
+---@field fontObject string?
+---@field textColor ColorTable?
+---@field backgroundColor ColorTable?
 
 ---@class LiqUI_WindowOptions
 ---@field parent Frame?
@@ -45,11 +49,13 @@
 ---@field point table?
 ---@field width number?
 ---@field height number?
----@field sidebar number?
 ---@field titlebar boolean?
 ---@field border number?
 ---@field windowScale number?
 ---@field windowColor ColorTable?
+---@field overlayFontObject string?
+---@field overlayTextColor ColorTable?
+---@field overlayBackgroundColor ColorTable?
 ---@field titlebarButtons LiqUI_WindowTitlebarButton[]?
 ---@field onSettingsMenu fun(window: LiqUI_WindowInstance, rootMenu: table)?
 ---@field onClose fun(window: LiqUI_WindowInstance)?
@@ -58,7 +64,6 @@
 ---@class LiqUI_WindowProgressBar : StatusBar
 ---@field background Texture
 
----@class LiqUI_WindowProgressOverlay : Frame
----@field content Frame
+---@class LiqUI_WindowOverlay : Frame
 ---@field text FontString
 ---@field bar LiqUI_WindowProgressBar

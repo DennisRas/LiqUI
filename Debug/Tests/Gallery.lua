@@ -87,16 +87,16 @@ local function ensureGallery()
         name = "Progress",
         icon = "Interface/ICONS/INV_Misc_Gear_01",
         tooltipTitle = "Toggle progress overlay",
-        tooltipDescription = "Demonstrates ShowProgressOverlay / HideProgressOverlay.",
+        tooltipDescription = "Demonstrates ShowOverlay / HideOverlay.",
         onClick = function()
           if not galleryWindow then
             return
           end
           progressVisible = not progressVisible
           if progressVisible then
-            galleryWindow:ShowProgressOverlay("Loading sample data...", 0.65)
+            galleryWindow:ShowOverlay("Loading sample data...", 0.65)
           else
-            galleryWindow:HideProgressOverlay()
+            galleryWindow:HideOverlay()
           end
         end,
       },
