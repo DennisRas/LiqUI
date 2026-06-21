@@ -76,7 +76,6 @@ function Logger:New(options)
   if not self.db.loggers[loggerName] then
     ---@type LiqUI_LoggerDB
     self.db.loggers[loggerName] = {
-      enabled = false,
       autoScroll = true,
       autoShow = false,
       lines = {},
@@ -97,15 +96,6 @@ end
 
 function LoggerInstance:Initialize()
   self:Render()
-end
-
-function LoggerInstance:SetEnabled(enabled)
-  self.db.enabled = enabled
-end
-
----@return boolean
-function LoggerInstance:IsEnabled()
-  return self.db.enabled or false
 end
 
 function LoggerInstance:LogSession()
@@ -215,10 +205,6 @@ end
 ---@param prefix string
 ---@param message string
 function LoggerInstance:Log(prefix, message)
-  if not self.db.enabled then
-    return
-  end
-
   local lineText = format("[%s] [%s] %s", date("%H:%M:%S"), prefix, message)
   table.insert(self.db.lines, lineText)
   trimLoggerLines(self)

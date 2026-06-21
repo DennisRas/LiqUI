@@ -1,5 +1,4 @@
 ---@class LiqUI_LoggerDB
----@field enabled boolean
 ---@field autoScroll boolean
 ---@field autoShow boolean
 ---@field lines string[]
