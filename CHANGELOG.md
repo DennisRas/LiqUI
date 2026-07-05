@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.2.0 - TBD
+
+- Fixed window position after drag, reload, column resize, and scale changes so the top-left corner stays on the same screen pixel from 80% to 200% scale.
+
 ## v1.1.0 - 2026-06-21
 
 - Removed optional sidebar from the reusable window layout.

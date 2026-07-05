@@ -55,7 +55,7 @@ Constants.control = {
     tile = true,
     tileSize = 8,
     edgeSize = 1,
-    insets = { left = 1, right = 1, top = 1, bottom = 1 },
+    insets = {left = 1, right = 1, top = 1, bottom = 1},
   },
   backdropNoBorder = {
     bgFile = defaultBackdropTexture,
@@ -108,7 +108,7 @@ Constants.window = {
   titlebarIconLeft = 6,
   titlebarIconSize = 20,
   closeButtonIconSize = 10,
-  closeButtonIconColor = { 0.7, 0.7, 0.7, 1 },
+  closeButtonIconColor = {0.7, 0.7, 0.7, 1},
   iconCloseTexture = "Interface/AddOns/LiqUI/Media/Icon_Close.blp",
   maxWindowWidthMargin = 100,
 }
@@ -136,18 +136,18 @@ Constants.layout = {
     iconSettings = "Interface/AddOns/LiqUI/Media/Icon_Settings.blp",
   },
   colors = {
-    primary = { r = 0.2, g = 0.6, b = 1.0, a = 1.0 },
-    header = { r = 0, g = 0, b = 0, a = 0.3 },
+    primary = {r = 0.2, g = 0.6, b = 1.0, a = 1.0},
+    header = {r = 0, g = 0, b = 0, a = 0.3},
   },
   overlay = {
     textInset = 40,
     defaultFontObject = "GameFontHighlight",
   },
-  defaultWindowPoint = {
-    main = {"TOPLEFT", "TOPLEFT", 30, -30},
-    secondary = {"TOPLEFT", "TOPLEFT", 300, -300},
+  defaultWindowPosition = {
+    main = {topLeftX = 30, topLeftY = -30},
+    secondary = {topLeftX = 300, topLeftY = -300},
   },
-  defaultWindowColor = { r = 0.11372549019, g = 0.14117647058, b = 0.16470588235, a = 1 },
+  defaultWindowColor = {r = 0.11372549019, g = 0.14117647058, b = 0.16470588235, a = 1},
 }
 
 Constants.settings = {

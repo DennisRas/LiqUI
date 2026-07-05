@@ -55,43 +55,49 @@ local function applyOverlayStyle(window, showOptions)
   SetBackgroundColor(window.overlay, backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a)
 end
 
+---@param settings LiqUI_WindowDB
 ---@param window LiqUI_WindowInstance
----@return number|nil topLeftX
----@return number|nil topLeftY
-local function getWindowTopLeftOffset(window)
-  local left, top = window:GetLeft(), window:GetTop()
-  if not left or not top then
-    return nil, nil
+local function saveWindowPosition(settings, window)
+  local frameLeft, frameTop = window:GetLeft(), window:GetTop()
+  if frameLeft == nil or frameTop == nil then
+    return
   end
-  local parentLeft, parentTop = UIParent:GetLeft(), UIParent:GetTop()
-  if not parentLeft or not parentTop then
-    return nil, nil
+  local scale = window:GetScale()
+  if scale == 0 then
+    scale = 1
   end
-  return left - parentLeft, top - parentTop
-end
-
----@param window LiqUI_WindowInstance
----@param topLeftX number
----@param topLeftY number
-local function applyWindowTopLeft(window, topLeftX, topLeftY)
+  local storedX = frameLeft * scale
+  local storedY = frameTop * scale - UIParent:GetHeight()
+  ---@type LiqUI_WindowPointPersisted
+  settings.point = {"TOPLEFT", "TOPLEFT", storedX, storedY}
   window:ClearAllPoints()
-  window:SetPoint("TOPLEFT", UIParent, "TOPLEFT", topLeftX, topLeftY)
+  window:SetPoint("TOPLEFT", UIParent, "TOPLEFT", storedX / scale, storedY / scale)
 end
 
----@param point table|nil
----@return number|nil topLeftX
----@return number|nil topLeftY
-local function readWindowTopLeftPoint(point)
-  if not point or type(point) ~= "table" then
-    return nil, nil
+---@param settings LiqUI_WindowDB
+---@param window LiqUI_WindowInstance
+local function applyWindowPosition(settings, window)
+  local scale = (settings.scale or 100) / 100
+  if scale == 0 then
+    scale = 1
   end
-  if point[1] ~= "TOPLEFT" or point[2] ~= "TOPLEFT" then
-    return nil, nil
+
+  local offsetX, offsetY
+  local savedPoint = settings.point
+  if type(savedPoint) == "table" and type(savedPoint[3]) == "number" and type(savedPoint[4]) == "number" then
+    offsetX = savedPoint[3] / scale
+    offsetY = savedPoint[4] / scale
+  else
+    local defaultPosition = window.options.name == "Main"
+      and LiqUI.Constants.layout.defaultWindowPosition.main
+      or LiqUI.Constants.layout.defaultWindowPosition.secondary
+    offsetX = defaultPosition.topLeftX
+    offsetY = defaultPosition.topLeftY
   end
-  if not point[3] or not point[4] then
-    return nil, nil
-  end
-  return point[3], point[4]
+
+  window:SetScale(scale)
+  window:ClearAllPoints()
+  window:SetPoint("TOPLEFT", UIParent, "TOPLEFT", offsetX, offsetY)
 end
 
 local function repositionTitlebarButtons(window)
@@ -159,18 +165,6 @@ function Window:New(options)
   TableMergeOptions(mergedOptions, defaultOptions)
   TableMergeOptions(mergedOptions, options)
 
-  if options.point == nil then
-    local defaultPoint = windowName == "Main"
-      and LiqUI.Constants.layout.defaultWindowPoint.main
-      or LiqUI.Constants.layout.defaultWindowPoint.secondary
-    mergedOptions.point = {
-      defaultPoint[1],
-      defaultPoint[2],
-      defaultPoint[3],
-      defaultPoint[4],
-    }
-  end
-
   if not self.db.windows[windowName] then
     ---@type LiqUI_WindowDB
     self.db.windows[windowName] = {
@@ -186,10 +180,6 @@ function Window:New(options)
   window:SetFrameLevel(3000)
   window:SetToplevel(true)
   window:SetMovable(true)
-  local initialTopLeftX, initialTopLeftY = readWindowTopLeftPoint(window.options.point)
-  if initialTopLeftX and initialTopLeftY then
-    applyWindowTopLeft(window, initialTopLeftX, initialTopLeftY)
-  end
   window:SetSize(window.options.width or 300, window.options.height or 300)
   window:EnableMouse(true)
   window:SetParent(window.options.parent)
@@ -232,11 +222,8 @@ function Window:New(options)
     if window.options.titlebar then
       h = h + LiqUI.Constants.layout.sizes.titlebar.height
     end
-    local topLeftX, topLeftY = getWindowTopLeftOffset(window)
     window:SetSize(w, h)
-    if topLeftX and topLeftY then
-      applyWindowTopLeft(window, topLeftX, topLeftY)
-    end
+    updateWindowClampInsets(window)
   end
 
   ---@param text string|nil
@@ -391,7 +378,8 @@ function Window:New(options)
       return
     end
     window.db.scale = scalePercent
-    window:Render()
+    window.options.windowScale = scalePercent
+    applyWindowPosition(window.db, window)
   end
 
   ---@return ColorTable
@@ -442,14 +430,7 @@ function Window:New(options)
       end
     end
     window.options.windowScale = settings.scale or 100
-    window:SetScale((settings.scale or 100) / 100)
-    local topLeftX, topLeftY = readWindowTopLeftPoint(settings.point)
-    if not topLeftX or not topLeftY then
-      topLeftX, topLeftY = readWindowTopLeftPoint(window.options.point)
-    end
-    if topLeftX and topLeftY then
-      applyWindowTopLeft(window, topLeftX, topLeftY)
-    end
+    applyWindowPosition(settings, window)
     if window.border then
       window.border:SetShown(settings.border ~= false)
     end
@@ -460,16 +441,7 @@ function Window:New(options)
     if not settings then
       return
     end
-    local _, relativeTo = window:GetPoint()
-    if not relativeTo or relativeTo == UIParent then
-      local topLeftX, topLeftY = getWindowTopLeftOffset(window)
-      if not topLeftX or not topLeftY then
-        local fallbackX, fallbackY = readWindowTopLeftPoint(window.options.point)
-        settings.point = {"TOPLEFT", "TOPLEFT", fallbackX or 0, fallbackY or 0}
-      else
-        settings.point = {"TOPLEFT", "TOPLEFT", topLeftX, topLeftY}
-      end
-    end
+    saveWindowPosition(settings, window)
     settings.scale = math.floor(window:GetScale() * 100 + 0.5)
     if window.options.windowColor then
       settings.windowColor = TableCopy(window.options.windowColor)

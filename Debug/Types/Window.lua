@@ -11,6 +11,10 @@
 
 ---@alias LiqUI_WindowPointPersisted [string, string, number, number]
 
+---@class LiqUI_WindowDefaultPosition
+---@field topLeftX number
+---@field topLeftY number
+
 ---@class LiqUI_Window
 ---@field embed LiqUI_Instance
 ---@field instances table<string, LiqUI_WindowInstance>
@@ -46,7 +50,6 @@
 ---@field name string?
 ---@field title string?
 ---@field icon string?
----@field point LiqUI_WindowPointPersisted?
 ---@field width number?
 ---@field height number?
 ---@field titlebar boolean?
