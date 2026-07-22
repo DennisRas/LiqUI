@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.2.0 - TBD
+## v1.2.0 - 2026-07-22
 
 - Fixed window position after drag, reload, column resize, and scale changes so the top-left corner stays on the same screen pixel from 80% to 200% scale.
 
