@@ -127,7 +127,9 @@ end
 
 ---@param instance LiqUI_Instance
 function Window:Embed(instance)
-  instance.Window = LiqUI.BindManager(instance, self, {instances = {}})
+  ---@type LiqUI_Window
+  local manager = LiqUI.Utils.BindManager(instance, self, { instances = {} })
+  instance.Window = manager
 end
 
 ---Create a window frame
@@ -191,9 +193,9 @@ function Window:New(options)
 
   ---Hide the window and run the close handler
   function window:Close()
-    self:Hide()
-    if self.options.onClose then
-      self.options.onClose(self)
+    window:Hide()
+    if window.options.onClose then
+      window.options.onClose(window)
     end
   end
 
@@ -343,7 +345,7 @@ function Window:New(options)
   ---@param buttonName string
   function window:RemoveTitlebarButton(buttonName)
     local button = TableFind(window.titlebarButtons,
-                             function(button) return button:GetName() == buttonName end)
+                             function(titlebarButton) return titlebarButton:GetName() == buttonName end)
     if not button then
       error("Button with name '" .. buttonName .. "' does not exist")
     end
@@ -382,7 +384,7 @@ function Window:New(options)
     applyWindowPosition(window.db, window)
   end
 
-  ---@return ColorTable
+  ---@return ColorTable?
   function window:GetWindowColor()
     if window.db and window.db.windowColor then
       return window.db.windowColor
@@ -638,11 +640,14 @@ function Window:New(options)
   local topOffset = window.options.titlebar and -LiqUI.Constants.layout.sizes.titlebar.height or 0
 
   -- Body
-  window.body = CreateFrame("Frame", "$parentBody", window)
-  applyWindowContentLayout(window.body, window, topOffset)
-  SetBackgroundColor(window.body, 0, 0, 0, 0)
+  ---@type LiqUI_WindowBody
+  local body = CreateFrame("Frame", "$parentBody", window)
+  window.body = body
+  applyWindowContentLayout(body, window, topOffset)
+  SetBackgroundColor(body, 0, 0, 0, 0)
 
   do
+    ---@type LiqUI_WindowOverlay
     local overlay = CreateFrame("Frame", "$parentOverlay", window)
     window.overlay = overlay
     applyWindowContentLayout(overlay, window, topOffset)
@@ -659,20 +664,22 @@ function Window:New(options)
     overlay.text:SetJustifyH("CENTER")
     overlay.text:SetJustifyV("MIDDLE")
 
-    overlay.bar = CreateFrame("StatusBar", "$parentBar", overlay)
-    overlay.bar:SetPoint("TOP", overlay.text, "BOTTOM", 0, -12)
-    overlay.bar:SetHeight(14)
-    overlay.bar:SetFrameLevel(overlay:GetFrameLevel() + 1)
-    overlay.bar:SetStatusBarTexture(LiqUI.Constants.layout.media.whiteSquare)
-    overlay.bar:SetMinMaxValues(0, 1)
-    overlay.bar:SetValue(0)
+    ---@type LiqUI_WindowProgressBar
+    local progressBar = CreateFrame("StatusBar", "$parentBar", overlay)
+    overlay.bar = progressBar
+    progressBar:SetPoint("TOP", overlay.text, "BOTTOM", 0, -12)
+    progressBar:SetHeight(14)
+    progressBar:SetFrameLevel(overlay:GetFrameLevel() + 1)
+    progressBar:SetStatusBarTexture(LiqUI.Constants.layout.media.whiteSquare)
+    progressBar:SetMinMaxValues(0, 1)
+    progressBar:SetValue(0)
     local barFill = LiqUI.Constants.layout.colors.primary
-    overlay.bar:SetStatusBarColor(barFill.r, barFill.g, barFill.b, barFill.a)
-    overlay.bar.background = overlay.bar:CreateTexture(nil, "BACKGROUND")
-    overlay.bar.background:SetAllPoints()
-    overlay.bar.background:SetTexture(LiqUI.Constants.layout.media.whiteSquare)
-    overlay.bar.background:SetVertexColor(0, 0, 0, 0.5)
-    overlay.bar:Hide()
+    progressBar:SetStatusBarColor(barFill.r, barFill.g, barFill.b, barFill.a)
+    progressBar.background = progressBar:CreateTexture(nil, "BACKGROUND")
+    progressBar.background:SetAllPoints()
+    progressBar.background:SetTexture(LiqUI.Constants.layout.media.whiteSquare)
+    progressBar.background:SetVertexColor(0, 0, 0, 0.5)
+    progressBar:Hide()
   end
 
   if window.options.titlebarButtons then

@@ -379,8 +379,6 @@ function Settings:UpdateMenu()
     self.menuButtons[i]:Hide()
   end
   local offsetY = 0
-  local currentAddonId = self.currentAddonId
-  local currentPageId = self.currentPageId
   for index, entry in ipairs(list) do
     local button = self.menuButtons[index]
     if not button then

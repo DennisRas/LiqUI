@@ -22,10 +22,6 @@ function FormRow:New(options)
   local row = CreateFrame("Frame", nil, parent)
   row:SetHeight(24)
 
-  local parentWidth = (parent and type(parent.GetWidth) == "function" and parent:GetWidth()) or 400
-  local rowWidth = parentWidth - 2 * C.control.padding
-  local leftWidth = math.max(1, rowWidth - widgetWidth - C.form.rowGap)
-
   -- Control: right column, same vertical line as label (TOP)
   local widgetHeight = 24
   if type(widget.GetHeight) == "function" then

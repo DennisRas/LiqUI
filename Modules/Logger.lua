@@ -11,11 +11,14 @@ LiqUI.Logger = Logger
 local TableMergeOptions = LiqUI.Utils.TableMergeOptions
 local CreateScrollingEditBox = LiqUI.Utils.CreateScrollingEditBox
 
+---@class LiqUI_LoggerInstance
 local LoggerInstance = {}
 
 ---@param instance LiqUI_Instance
 function Logger:Embed(instance)
-  instance.Logger = LiqUI.BindManager(instance, self, { instances = {} })
+  ---@type LiqUI_Logger
+  local manager = LiqUI.Utils.BindManager(instance, self, { instances = {} })
+  instance.Logger = manager
 end
 
 ---@param textBox Frame
@@ -137,7 +140,9 @@ function LoggerInstance:Render()
       self:Render()
     end)
 
-    local scrollHost = CreateScrollingEditBox(window.body, options.bodyPadding)
+    ---@type LiqUI_WindowBody
+    local body = window.body
+    local scrollHost = CreateScrollingEditBox(body, options.bodyPadding)
     local textBox = scrollHost.textBox
     textBox:SetFontObject(options.fontObject or "ChatFontSmall")
 

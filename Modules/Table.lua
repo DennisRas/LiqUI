@@ -12,7 +12,6 @@ local BindScrollBoxMouseWheel = LiqUI.Utils.BindScrollBoxMouseWheel
 local CreateScrollArea = LiqUI.Utils.CreateScrollArea
 local SetBackgroundColor = LiqUI.Utils.SetBackgroundColor
 local SetHighlightColor = LiqUI.Utils.SetHighlightColor
-local TableFilter = LiqUI.Utils.TableFilter
 local TableForEach = LiqUI.Utils.TableForEach
 local TableMergeOptions = LiqUI.Utils.TableMergeOptions
 
@@ -104,7 +103,9 @@ end
 
 ---@param instance LiqUI_Instance
 function Table:Embed(instance)
-  instance.Table = LiqUI.BindManager(instance, self, {instances = {}})
+  ---@type LiqUI_Table
+  local manager = LiqUI.Utils.BindManager(instance, self, { instances = {} })
+  instance.Table = manager
 end
 
 ---Create a new table frame
@@ -199,8 +200,8 @@ function Table:New(options)
   function frame:GetActiveColumns()
     ---@type LiqUI_TableOptionsColumn[]
     local result = {}
-    local columns = self.options.columns or {}
-    local hiddenColumns = self.db and self.db.hiddenColumns
+    local columns = frame.options.columns or {}
+    local hiddenColumns = frame.db and frame.db.hiddenColumns
     TableForEach(columns, function(column, columnIndex)
       if column.id and hiddenColumns and hiddenColumns[column.id] then
         return
@@ -217,7 +218,7 @@ function Table:New(options)
     if not columnId then
       return nil
     end
-    local columns = self:GetActiveColumns()
+    local columns = frame:GetActiveColumns()
     for columnIndex, column in ipairs(columns) do
       if column.id == columnId then
         return columnIndex
@@ -227,30 +228,30 @@ function Table:New(options)
   end
 
   function frame:setSortStateToDefault()
-    local state = self.sortState
+    local state = frame.sortState
     state.columnId = nil
     state.direction = nil
   end
 
   function frame:validateSortState()
-    local sorting = self.options.sorting
-    if not sorting or not sorting.enabled then
+    local sortingOptions = frame.options.sorting
+    if not sortingOptions or not sortingOptions.enabled then
       return
     end
-    local state = self.sortState
+    local state = frame.sortState
     if not state then
       return
     end
-    if state.columnId and not self:getColumnById(state.columnId) then
-      self:setSortStateToDefault()
-      if sorting.onStateChanged then
-        sorting.onStateChanged(state)
+    if state.columnId and not frame:getColumnById(state.columnId) then
+      frame:setSortStateToDefault()
+      if sortingOptions.onStateChanged then
+        sortingOptions.onStateChanged(state)
       end
       return
     end
     if state.columnId then
       if state.direction ~= "asc" and state.direction ~= "desc" then
-        state.direction = (sorting.defaultOrder == "asc") and "asc" or "desc"
+        state.direction = (sortingOptions.defaultOrder == "asc") and "asc" or "desc"
       end
     else
       state.direction = nil
@@ -258,31 +259,31 @@ function Table:New(options)
   end
 
   function frame:onSortStateChanged()
-    local sorting = self.options.sorting
-    if sorting and sorting.onStateChanged then
-      sorting.onStateChanged(self.sortState)
+    local sortingOptions = frame.options.sorting
+    if sortingOptions and sortingOptions.onStateChanged then
+      sortingOptions.onStateChanged(frame.sortState)
     end
   end
 
   function frame:scrollToTop()
     C_Timer.After(0, function()
-      self:ScrollToTop()
+      frame:ScrollToTop()
     end)
   end
 
   function frame:applySort()
-    local sorting = self.options.sorting
-    if not sorting or not sorting.enabled then
+    local sortingOptions = frame.options.sorting
+    if not sortingOptions or not sortingOptions.enabled then
       return
     end
 
-    local data = self.data
+    local data = frame.data
     if not data or #data == 0 then
       return
     end
 
-    local state = self.sortState
-    local sortColumnIndex = self:getColumnById(state.columnId)
+    local state = frame.sortState
+    local sortColumnIndex = frame:getColumnById(state.columnId)
     if state.columnId and state.direction and not sortColumnIndex then
       return
     end
@@ -295,11 +296,11 @@ function Table:New(options)
     local columnSort = state.columnId and state.direction and sortColumnIndex
     if not columnSort then
       table.sort(indices, function(rowIndexA, rowIndexB)
-        return sorting.defaultCompare(data[rowIndexA], data[rowIndexB], rowIndexA, rowIndexB)
+        return sortingOptions.defaultCompare(data[rowIndexA], data[rowIndexB], rowIndexA, rowIndexB)
       end)
     else
       local ascending = state.direction == "asc"
-      local columns = self:GetActiveColumns()
+      local columns = frame:GetActiveColumns()
       local columnConfig = columns[sortColumnIndex]
       if not columnConfig or not columnConfig.sorting then
         error(format("LiqUI Table: column \"%s\" must define sorting", tostring(columnConfig and columnConfig.id)), 2)
@@ -331,20 +332,20 @@ function Table:New(options)
   ---@param shouldSort boolean
   function frame:runTable(shouldSort)
     if shouldSort then
-      self:validateSortState()
-      self:applySort()
+      frame:validateSortState()
+      frame:applySort()
     end
-    self:Render()
+    frame:Render()
   end
 
   function frame:Render()
-    local sortState = self.sortState
-    local headerConfig = self.options.header
-    local rowStyle = self.options.rowStyle
-    local cellStyle = self.options.cellStyle
-    local sortingConfig = self.options.sorting
+    local sortState = frame.sortState
+    local headerConfig = frame.options.header
+    local rowStyle = frame.options.rowStyle
+    local cellStyle = frame.options.cellStyle
+    local sortingConfig = frame.options.sorting
     local sortingEnabled = sortingConfig and sortingConfig.enabled
-    local activeColumns = self:GetActiveColumns()
+    local activeColumns = frame:GetActiveColumns()
 
     local headerEnabled = headerConfig and headerConfig.enabled
     local headerSticky = headerConfig and headerConfig.sticky
@@ -367,7 +368,7 @@ function Table:New(options)
     local rowOffsetY = scrollHeight
     local columnOffsetX = 0
 
-    local scrollArea = self.scrollArea
+    local scrollArea = frame.scrollArea
     local headerRowFrame = frame.headerRowFrame
 
     scrollArea:SetParent(frame)
@@ -447,7 +448,6 @@ function Table:New(options)
             if not GameTooltip:IsShown() then
               GameTooltip:SetOwner(headerCellFrame, "ANCHOR_RIGHT")
               GameTooltip:SetText(column.headerText or "", 1, 1, 1)
-            else
             end
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine("<Click to Sort>", GREEN_FONT_COLOR.r, GREEN_FONT_COLOR.g, GREEN_FONT_COLOR.b)
@@ -468,10 +468,10 @@ function Table:New(options)
         headerCellFrame:SetScript("OnClick", function(_, button)
           if columnSortable and column.id then
             if button == "RightButton" then
-              self:setSortStateToDefault()
-              self:runTable(true)
-              self:scrollToTop()
-              self:onSortStateChanged()
+              frame:setSortStateToDefault()
+              frame:runTable(true)
+              frame:scrollToTop()
+              frame:onSortStateChanged()
               return
             end
 
@@ -481,9 +481,9 @@ function Table:New(options)
               sortState.columnId = column.id
               sortState.direction = (sortingConfig and sortingConfig.defaultOrder == "asc") and "asc" or "desc"
             end
-            self:runTable(true)
-            self:scrollToTop()
-            self:onSortStateChanged()
+            frame:runTable(true)
+            frame:scrollToTop()
+            frame:onSortStateChanged()
           end
         end)
       end)
@@ -491,17 +491,17 @@ function Table:New(options)
       headerRowFrame:Hide()
     end
 
-    TableForEach(self.rowFrames, function(rowFrame) rowFrame:Hide() end)
-    TableForEach(self.data, function(rowData, rowIndex)
+    TableForEach(frame.rowFrames, function(rowFrame) rowFrame:Hide() end)
+    TableForEach(frame.data, function(rowData, rowIndex)
       local rowHeight = rowData.height or defaultRowHeight
-      local rowFrame = self.rowFrames[rowIndex]
+      local rowFrame = frame.rowFrames[rowIndex]
 
       if not rowFrame then
         ---@type LiqUI_TableRowFrame
         rowFrame = CreateFrame("Frame", "$parentRow" .. rowIndex, scrollArea.content)
         rowFrame.cells = {}
         BindScrollBoxMouseWheel(rowFrame, scrollArea:GetWheelScrollBox())
-        self.rowFrames[rowIndex] = rowFrame
+        frame.rowFrames[rowIndex] = rowFrame
       end
 
       if rowData.backgroundColor then
@@ -609,14 +609,14 @@ function Table:New(options)
       shownHeight = shownHeight + headerHeight
     end
 
-    self.layoutSize.shownWidth = layoutWidth
-    self.layoutSize.shownHeight = shownHeight
+    frame.layoutSize.shownWidth = layoutWidth
+    frame.layoutSize.shownHeight = shownHeight
 
     scrollArea:UpdateLayout(layoutWidth, scrollHeight)
   end
 
   function frame:ScrollToTop()
-    local scrollArea = self.scrollArea
+    local scrollArea = frame.scrollArea
     if not scrollArea then
       return
     end
@@ -625,7 +625,7 @@ function Table:New(options)
 
   ---@param data LiqUI_TableData
   function frame:SetData(data)
-    local columns = self.options.columns
+    local columns = frame.options.columns
     if not columns or #columns == 0 then
       error("LiqUI Table: columns is required", 2)
     end
@@ -637,9 +637,9 @@ function Table:New(options)
         error(format("LiqUI Table: row #%d must be a table", rowIndex), 2)
       end
     end
-    validateSortingColumns(columns, self.options.sorting)
-    self.data = normalizeData(data)
-    self:runTable(true)
+    validateSortingColumns(columns, frame.options.sorting)
+    frame.data = normalizeData(data)
+    frame:runTable(true)
   end
 
   ---@param columns LiqUI_TableOptionsColumn[]
@@ -647,61 +647,60 @@ function Table:New(options)
     if not columns or #columns == 0 then
       error("LiqUI Table: columns is required", 2)
     end
-    validateSortingColumns(columns, self.options.sorting)
-    self.options.columns = columns
-    self:runTable(true)
+    validateSortingColumns(columns, frame.options.sorting)
+    frame.options.columns = columns
+    frame:runTable(true)
   end
 
   ---@param columnId string
   ---@param hidden boolean
   function frame:SetColumnHidden(columnId, hidden)
-    if not self.db then
+    if not frame.db then
       return
     end
     if hidden then
-      self.db.hiddenColumns[columnId] = true
+      frame.db.hiddenColumns[columnId] = true
     else
-      self.db.hiddenColumns[columnId] = nil
+      frame.db.hiddenColumns[columnId] = nil
     end
-    self:runTable(true)
+    frame:runTable(true)
   end
 
   ---@return LiqUI_TableSortState
   function frame:GetSortState()
-    local state = self.sortState
+    local state = frame.sortState
     return { columnId = state.columnId, direction = state.direction }
   end
 
   ---@param columnId string|nil
   ---@param direction "asc"|"desc"|nil
   function frame:SetSortState(columnId, direction)
-    local state = self.sortState
+    local state = frame.sortState
     state.columnId = columnId
     state.direction = direction
-    self:runTable(true)
-    self:onSortStateChanged()
+    frame:runTable(true)
+    frame:onSortStateChanged()
   end
 
   ---@param height number
   function frame:SetRowHeight(height)
-    local rowStyle = self.options.rowStyle
+    local rowStyle = frame.options.rowStyle
     if rowStyle then
       rowStyle.height = height
     end
-    if self.scrollArea then
-      self.scrollArea:SetWheelPanExtent(height)
+    if frame.scrollArea then
+      frame.scrollArea:SetWheelPanExtent(height)
     end
-    self:runTable(false)
+    frame:runTable(false)
   end
 
   ---@return number width
   ---@return number height
   function frame:GetSize()
-    local layoutSize = self.layoutSize
+    local layoutSize = frame.layoutSize
     return layoutSize.shownWidth, layoutSize.shownHeight
   end
 
-  local sorting = frame.options.sorting
   local saved = sorting and sorting.savedState
   if sorting and sorting.enabled and saved and type(saved.columnId) == "string" and saved.columnId ~= "" then
     frame.sortState.columnId = saved.columnId

@@ -8,6 +8,31 @@ end
 local Utils = {}
 LiqUI.Utils = Utils
 
+---@generic T
+---@param instance LiqUI_Instance?
+---@param prototype T
+---@param state table?
+---@return T
+function Utils.BindManager(instance, prototype, state)
+  local manager = state or {}
+  if instance then
+    manager.embed = instance
+  end
+  setmetatable(manager, {
+    __index = function(managerTable, key)
+      local value = prototype[key]
+      if value ~= nil then
+        return value
+      end
+      local embed = managerTable.embed
+      if embed then
+        return embed[key]
+      end
+    end,
+  })
+  return manager
+end
+
 ---Merge defaults with options; ensure parent (default UIParent).
 function Utils.PrepareOptions(defaults, options)
   local opts = Utils.MergeDeep(defaults or {parent = UIParent}, options or {})
@@ -49,7 +74,10 @@ end
 ---@return T|nil, any
 function Utils.TableGet(tbl, key, val)
   return Utils.TableFind(tbl, function(elm, _)
-    return elm[key] and elm[key] == val
+    if elm[key] and elm[key] == val then
+      return true
+    end
+    return false
   end)
 end
 
@@ -171,9 +199,12 @@ end
 ---Highlight mixin: overlay for hover/selection. Use Mixin(frame, LiqUI.Mixins.Highlight).
 ---Call SetVertexColor(r,g,b,a) then ShowHighlight() / HideHighlight(); does not override frame Show/Hide.
 ---@class LiqUI_HighlightMixin
-LiqUI.Mixins = {}
-LiqUI.Mixins.Highlight = {}
-local Highlight = LiqUI.Mixins.Highlight
+---@type LiqUI_Mixins
+local Mixins = {}
+LiqUI.Mixins = Mixins
+---@type LiqUI_HighlightMixin
+local Highlight = {}
+Mixins.Highlight = Highlight
 
 function Highlight:SetHighlightColor(r, g, b, a)
   if not self.Highlight then
@@ -653,7 +684,7 @@ function Utils.CreateScrollArea(parent, options)
     wheelPanExtent = wheelPanExtent,
   }
 
-  ---@return Frame
+  ---@return Frame?
   function scrollArea:GetWheelScrollBox()
     if self.verticalScrollBox then
       return self.verticalScrollBox
