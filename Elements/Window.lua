@@ -4,10 +4,6 @@ if not LiqUI then
   return
 end
 
----@class LiqUI_Window
-local Window = {}
-LiqUI.Window = Window
-
 local SetBackgroundColor = LiqUI.Utils.SetBackgroundColor
 local TableCopy = LiqUI.Utils.TableCopy
 local TableFilter = LiqUI.Utils.TableFilter
@@ -88,7 +84,7 @@ local function applyWindowPosition(settings, window)
     offsetX = savedPoint[3] / scale
     offsetY = savedPoint[4] / scale
   else
-    local defaultPosition = window.options.name == "Main"
+    local defaultPosition = (window.options.name == "Main" or window.options.name:match("Main$"))
       and LiqUI.Constants.layout.defaultWindowPosition.main
       or LiqUI.Constants.layout.defaultWindowPosition.secondary
     offsetX = defaultPosition.topLeftX
@@ -125,20 +121,10 @@ local function applyWindowContentLayout(frame, window, topOffset)
   frame:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", 0, 0)
 end
 
----@param instance LiqUI_Instance
-function Window:Embed(instance)
-  ---@type LiqUI_Window
-  local manager = LiqUI.Utils.BindManager(instance, self, { instances = {} })
-  instance.Window = manager
-end
-
 ---Create a window frame
 ---@param options LiqUI_WindowOptions
 ---@return LiqUI_WindowInstance
-function Window:New(options)
-  if not self.db then
-    error("LiqUI.Window:New requires a LiqUI instance", 2)
-  end
+local function createWindow(options)
   if not options then
     error("LiqUI Window: options is required", 2)
   end
@@ -147,7 +133,7 @@ function Window:New(options)
     error("LiqUI Window: options.name is required", 2)
   end
 
-  local frameName = "LiqUIWindow" .. self.name .. windowName
+  local frameName = "LiqUIWindow" .. windowName:gsub("[^%w]", "")
 
   ---@type LiqUI_WindowInstance
   local window = CreateFrame("Frame", frameName, UIParent)
@@ -167,15 +153,13 @@ function Window:New(options)
   TableMergeOptions(mergedOptions, defaultOptions)
   TableMergeOptions(mergedOptions, options)
 
-  if not self.db.windows[windowName] then
-    ---@type LiqUI_WindowDB
-    self.db.windows[windowName] = {
-      windowColor = TableCopy(mergedOptions.windowColor),
-    }
+  local storage = options.storage
+  if storage and not storage.windowColor then
+    storage.windowColor = TableCopy(mergedOptions.windowColor)
   end
 
   window.options = mergedOptions
-  window.db = self.db.windows[windowName]
+  window.db = storage
   window.titlebarButtons = {}
 
   window:SetFrameStrata("MEDIUM")
@@ -420,21 +404,33 @@ function Window:New(options)
 
   function window:ApplySettings()
     local settings = window.db
-    if not settings then
+    if settings then
+      if settings.windowColor then
+        window.options.windowColor = settings.windowColor
+        SetBackgroundColor(window, settings.windowColor.r, settings.windowColor.g, settings.windowColor.b,
+                           settings.windowColor.a)
+        if window.overlay and window.overlay:IsShown() then
+          applyOverlayStyle(window, window.overlayLastShowOptions)
+        end
+      end
+      window.options.windowScale = settings.scale or 100
+      applyWindowPosition(settings, window)
+      if window.border then
+        window.border:SetShown(settings.border ~= false)
+      end
       return
     end
-    if settings.windowColor then
-      window.options.windowColor = settings.windowColor
-      SetBackgroundColor(window, settings.windowColor.r, settings.windowColor.g, settings.windowColor.b,
-                         settings.windowColor.a)
+
+    local windowColor = window.options.windowColor
+    if windowColor then
+      SetBackgroundColor(window, windowColor.r, windowColor.g, windowColor.b, windowColor.a)
       if window.overlay and window.overlay:IsShown() then
         applyOverlayStyle(window, window.overlayLastShowOptions)
       end
     end
-    window.options.windowScale = settings.scale or 100
-    applyWindowPosition(settings, window)
+    applyWindowPosition({ scale = window.options.windowScale or 100 }, window)
     if window.border then
-      window.border:SetShown(settings.border ~= false)
+      window.border:Show()
     end
   end
 
@@ -702,29 +698,9 @@ function Window:New(options)
   end)
 
   window:Render()
+  window:Hide()
   table.insert(UISpecialFrames, window:GetName())
-  self.instances[windowName] = window
   return window
 end
 
----Get a window by name
----@param name string
----@return LiqUI_WindowInstance?
-function Window:GetWindow(name)
-  return self.instances[name]
-end
-
----Get the maximum window width based on current screen width
----@return number
-function Window:GetMaxWindowWidth()
-  return GetScreenWidth() - LiqUI.Constants.layout.sizes.maxWindowWidthMargin
-end
-
----Toggle a window by name (defaults to "Main")
----@param name string?
-function Window:ToggleWindow(name)
-  if name == nil or name == "" then name = "Main" end
-  local window = self:GetWindow(name)
-  if not window then return end
-  window:Toggle()
-end
+LiqUI:RegisterElement("Window", createWindow)

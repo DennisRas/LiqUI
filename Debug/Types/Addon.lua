@@ -5,27 +5,23 @@
 ---@class LiqUI_DB
 ---@field windows table<string, LiqUI_WindowDB>
 ---@field tables table<string, LiqUI_TableDB>
----@field loggers table<string, LiqUI_LoggerDB>
 
----@class LiqUI_Instance
+---@class LiqUI_RegisterAddonOptions
 ---@field name string
----@field db LiqUI_DB
----@field Window LiqUI_Window
----@field Table LiqUI_Table
----@field Logger LiqUI_Logger
+---@field title string?
 
----@class LiqUI_NewOptions
+---@class LiqUI_RegisteredAddon
 ---@field name string
----@field db LiqUI_DB
+---@field title string
 
 ---@class LiqUI
 ---@field Utils LiqUI_Utils
 ---@field Mixins LiqUI_Mixins
 ---@field Constants LiqUI_Constants
----@field Window LiqUI_Window
----@field Table LiqUI_Table
 ---@field Logger LiqUI_Logger
----@field instances table<string, LiqUI_Instance>
+---@field elements table<string, fun(options: table): any>
+---@field created table<string, table<string, any>>
+---@field registeredAddons table<string, LiqUI_RegisteredAddon>
 ---@field minor number
 
 ---@class LiqUI_Mixins

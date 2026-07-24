@@ -10,18 +10,15 @@ LiqUIDB = LiqUIDB or {}
 ---@return LiqUI_DB
 local function getEmbedDB()
   local liqui = LiqUIDB.liqui
-  if type(liqui) ~= "table" or type(liqui.windows) ~= "table" or type(liqui.tables) ~= "table" or type(liqui.loggers) ~= "table" then
+  if type(liqui) ~= "table" or type(liqui.windows) ~= "table" or type(liqui.tables) ~= "table" then
     ---@type LiqUI_DB
     LiqUIDB.liqui = {
       windows = type(liqui) == "table" and type(liqui.windows) == "table" and liqui.windows or {},
       tables = type(liqui) == "table" and type(liqui.tables) == "table" and liqui.tables or {},
-      loggers = type(liqui) == "table" and type(liqui.loggers) == "table" and liqui.loggers or {},
     }
   end
   return LiqUIDB.liqui
 end
-
-local liqui = LiqUI:New({ name = "LiqUI", db = getEmbedDB() })
 
 local Settings = {}
 LiqUI.Settings = Settings
@@ -505,8 +502,14 @@ end
 ---Create all window frames on load. Call once (e.g. at end of file). Populates menu from current registrations.
 function Settings:Init()
   if self.window then return end
-  local window = liqui.Window:New({
+  local db = getEmbedDB()
+  if not db.windows.LiqUISettings then
+    ---@type LiqUI_WindowDB
+    db.windows.LiqUISettings = {}
+  end
+  local window = LiqUI:NewElement("Window", {
     name = "LiqUISettings",
+    storage = db.windows.LiqUISettings,
     title = "Settings",
   })
   window:SetBodySize(s.windowWidth, s.windowHeight)

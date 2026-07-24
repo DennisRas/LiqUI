@@ -15,10 +15,6 @@
 ---@field topLeftX number
 ---@field topLeftY number
 
----@class LiqUI_Window
----@field embed LiqUI_Instance
----@field instances table<string, LiqUI_WindowInstance>
-
 ---@class LiqUI_WindowInstance : Frame
 ---@field options LiqUI_WindowOptions
 ---@field db LiqUI_WindowDB|nil
@@ -33,6 +29,8 @@
 
 ---@class LiqUI_WindowBody : Frame
 ---@field scrollArea LiqUI_ScrollArea?
+---@field textBox Frame?
+---@field scrollBar Frame?
 
 ---@class LiqUI_WindowDB
 ---@field point LiqUI_WindowPointPersisted?
@@ -47,7 +45,8 @@
 
 ---@class LiqUI_WindowOptions
 ---@field parent Frame?
----@field name string?
+---@field name string
+---@field storage LiqUI_WindowDB?
 ---@field title string?
 ---@field icon string?
 ---@field width number?

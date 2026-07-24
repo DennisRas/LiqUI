@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.3.0 - TBD
+
+- Updated window and table creation so hosts pass a unique name and optional saved layout storage directly.
+- Updated the debug log to one shared window with an addon dropdown instead of a separate log window per host.
+
 ## v1.2.0 - 2026-07-22
 
 - Fixed window position after drag, reload, column resize, and scale changes so the top-left corner stays on the same screen pixel from 80% to 200% scale.
