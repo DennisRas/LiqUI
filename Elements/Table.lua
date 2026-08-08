@@ -97,6 +97,38 @@ local function validateSortingColumns(columns, sorting)
   end
 end
 
+---@param value number
+---@param minValue number|nil
+---@param maxValue number|nil
+---@return number
+local function clampColumnWidth(value, minValue, maxValue)
+  local width = value
+  if minValue and width < minValue then
+    width = minValue
+  end
+  if maxValue and width > maxValue then
+    width = maxValue
+  end
+  return width
+end
+
+---@param scrollBox table|nil
+---@return number
+local function getScrollBoxOffset(scrollBox)
+  if not scrollBox then
+    return 0
+  end
+  if scrollBox.GetDerivedScrollOffset then
+    return scrollBox:GetDerivedScrollOffset() or 0
+  end
+  if scrollBox.GetScrollPercentage and scrollBox.GetDerivedScrollRange then
+    local scrollRange = scrollBox:GetDerivedScrollRange() or 0
+    local scrollPercentage = scrollBox:GetScrollPercentage() or 0
+    return scrollRange * scrollPercentage
+  end
+  return 0
+end
+
 ---Create a new table frame
 ---@param options LiqUI_TableOptions
 ---@return LiqUI_TableInstance
@@ -120,6 +152,8 @@ local function createTable(options)
       sticky = false,
       height = LiqUI.Constants.layout.sizes.header,
       fontObject = "GameFontNormalSmall",
+      resizeHandleWidth = 6,
+      defaultMinColumnWidth = 40,
     },
     rowStyle = {
       height = LiqUI.Constants.layout.sizes.row,
@@ -137,6 +171,9 @@ local function createTable(options)
       defaultCompare = function()
         return false
       end,
+    },
+    scroll = {
+      horizontal = false,
     },
   }
   ---@type LiqUI_TableOptions
@@ -161,10 +198,10 @@ local function createTable(options)
   local tableDb = options.storage
   if not tableDb then
     ---@type LiqUI_TableDB
-    tableDb = { hiddenColumns = {} }
-  elseif not tableDb.hiddenColumns then
-    tableDb.hiddenColumns = {}
+    tableDb = { hiddenColumns = {}, columnWidths = {} }
   end
+  tableDb.hiddenColumns = tableDb.hiddenColumns or {}
+  tableDb.columnWidths = tableDb.columnWidths or {}
 
   if sorting then
     if tableDb.sortState then
@@ -182,7 +219,7 @@ local function createTable(options)
   frame.data = {}
   frame.rowFrames = {}
   frame.sortState = { columnId = nil, direction = nil }
-  frame.layoutSize = { shownWidth = 0, shownHeight = 0 }
+  frame.layoutSize = { contentWidth = 0, contentHeight = 0, shownWidth = 0, shownHeight = 0 }
 
   ---@return LiqUI_TableOptionsColumn[]
   function frame:GetActiveColumns()
@@ -253,10 +290,153 @@ local function createTable(options)
     end
   end
 
+  ---@param column LiqUI_TableOptionsColumn
+  ---@return number
+  function frame:getColumnMinWidth(column)
+    local header = frame.options.header
+    local defaultMin = (header and header.defaultMinColumnWidth) or 40
+    return column.minWidth or defaultMin
+  end
+
+  ---@param column LiqUI_TableOptionsColumn
+  ---@return number
+  function frame:getResolvedColumnWidth(column)
+    local defaultColumnWidth = LiqUI.Constants.layout.sizes.column
+    local width = column.width or defaultColumnWidth
+    if column.id and frame.db and frame.db.columnWidths and type(frame.db.columnWidths[column.id]) == "number" then
+      width = frame.db.columnWidths[column.id]
+    end
+    if type(column.resolvedWidth) == "number" then
+      width = column.resolvedWidth
+    end
+    return clampColumnWidth(width, frame:getColumnMinWidth(column), column.maxWidth)
+  end
+
+  ---@param columnId string
+  ---@return LiqUI_TableOptionsColumn|nil
+  function frame:getColumnDefinitionById(columnId)
+    if not columnId then
+      return nil
+    end
+    for _, column in ipairs(frame.options.columns or {}) do
+      if column.id == columnId then
+        return column
+      end
+    end
+    return nil
+  end
+
+  ---@param columnId string
+  ---@return number|nil
+  function frame:GetColumnWidth(columnId)
+    local column = frame:getColumnDefinitionById(columnId)
+    if not column then
+      return nil
+    end
+    return frame:getResolvedColumnWidth(column)
+  end
+
+  ---@param columnId string
+  ---@param width number
+  ---@param transient boolean?
+  function frame:SetColumnWidth(columnId, width, transient)
+    local column = frame:getColumnDefinitionById(columnId)
+    if not column or not column.id or type(width) ~= "number" then
+      return
+    end
+    local resolvedWidth = clampColumnWidth(width, frame:getColumnMinWidth(column), column.maxWidth)
+    if not transient and frame.db then
+      frame.db.columnWidths = frame.db.columnWidths or {}
+      frame.db.columnWidths[column.id] = resolvedWidth
+    end
+    column.resolvedWidth = resolvedWidth
+    frame:runTable(false)
+  end
+
+  ---@param columnId string
+  function frame:ResetColumnWidth(columnId)
+    local column = frame:getColumnDefinitionById(columnId)
+    if not column or not column.id then
+      return
+    end
+    if frame.db and frame.db.columnWidths then
+      frame.db.columnWidths[column.id] = nil
+    end
+    column.resolvedWidth = nil
+    frame:runTable(false)
+  end
+
   function frame:scrollToTop()
     C_Timer.After(0, function()
       frame:ScrollToTop()
     end)
+  end
+
+  function frame:syncStickyHeaderHorizontalOffset()
+    if not frame.headerRowFrame or not frame.options.header or not frame.options.header.sticky then
+      return
+    end
+    local scrollArea = frame.scrollArea
+    local offset = getScrollBoxOffset(scrollArea and scrollArea.horizontalScrollBox)
+    local headerWidth = frame.headerRowFrame:GetWidth() or 0
+    frame.headerRowFrame:ClearAllPoints()
+    frame.headerRowFrame:SetPoint("TOPLEFT", frame.headerClipFrame or frame, "TOPLEFT", -offset, 0)
+    frame.headerRowFrame:SetWidth(math.max(frame.layoutSize.shownWidth or 0, headerWidth, frame:GetWidth()))
+  end
+
+  ---@param column LiqUI_TableOptionsColumn
+  function frame:startColumnResize(column)
+    if not column or not column.id then
+      return
+    end
+    local cursorX = GetCursorPosition()
+    frame.resizeState = {
+      columnId = column.id,
+      startCursorX = cursorX,
+      startWidth = frame:getResolvedColumnWidth(column),
+    }
+    frame:SetScript("OnUpdate", function()
+      frame:updateColumnResize()
+    end)
+  end
+
+  ---@param commit boolean
+  function frame:finishColumnResize(commit)
+    local resizeState = frame.resizeState
+    if not resizeState then
+      return
+    end
+    frame:SetScript("OnUpdate", nil)
+    frame.resizeState = nil
+    local column = frame:getColumnDefinitionById(resizeState.columnId)
+    if not column then
+      return
+    end
+    if commit then
+      frame:SetColumnWidth(resizeState.columnId, frame:getResolvedColumnWidth(column), false)
+    else
+      column.resolvedWidth = nil
+      frame:runTable(false)
+    end
+  end
+
+  function frame:updateColumnResize()
+    local resizeState = frame.resizeState
+    if not resizeState then
+      frame:SetScript("OnUpdate", nil)
+      return
+    end
+    if not IsMouseButtonDown("LeftButton") then
+      frame:finishColumnResize(true)
+      return
+    end
+    local cursorX = GetCursorPosition()
+    local scale = frame:GetEffectiveScale() or 1
+    if scale == 0 then
+      scale = 1
+    end
+    local delta = (cursorX - resizeState.startCursorX) / scale
+    frame:SetColumnWidth(resizeState.columnId, resizeState.startWidth + delta, true)
   end
 
   function frame:applySort()
@@ -344,8 +524,8 @@ local function createTable(options)
 
     local headerEnabled = headerConfig and headerConfig.enabled
     local headerSticky = headerConfig and headerConfig.sticky
+    local headerResizable = headerConfig and headerConfig.resizable
     local defaultRowHeight = (rowStyle and rowStyle.height) or LiqUI.Constants.layout.sizes.row
-    local defaultColumnWidth = LiqUI.Constants.layout.sizes.column
     local headerHeight = (headerConfig and headerConfig.height) or LiqUI.Constants.layout.sizes.header
     local defaultPadding = (cellStyle and cellStyle.padding) or LiqUI.Constants.layout.sizes.padding
     local defaultHeaderFont = (headerConfig and headerConfig.fontObject) or "GameFontNormalSmall"
@@ -353,7 +533,7 @@ local function createTable(options)
 
     local layoutWidth = 0
     TableForEach(activeColumns, function(column)
-      layoutWidth = layoutWidth + (column.width or defaultColumnWidth)
+      layoutWidth = layoutWidth + frame:getResolvedColumnWidth(column)
     end)
 
     local scrollHeight = 0
@@ -379,27 +559,41 @@ local function createTable(options)
       end
 
       if headerSticky then
-        headerRowFrame:SetParent(frame)
-        headerRowFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
-        headerRowFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
-        headerRowFrame:SetFrameLevel(scrollArea.verticalScrollBar:GetFrameLevel() + 2)
+        if not frame.headerClipFrame then
+          frame.headerClipFrame = CreateFrame("Frame", "$parentHeaderClip", frame)
+          if frame.headerClipFrame.SetClipsChildren then
+            frame.headerClipFrame:SetClipsChildren(true)
+          end
+        end
+        frame.headerClipFrame:ClearAllPoints()
+        frame.headerClipFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+        frame.headerClipFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
+        frame.headerClipFrame:SetHeight(headerHeight)
+        frame.headerClipFrame:SetFrameLevel(scrollArea.verticalScrollBar:GetFrameLevel() + 2)
+        frame.headerClipFrame:Show()
+        headerRowFrame:SetParent(frame.headerClipFrame)
+        headerRowFrame:SetFrameLevel(frame.headerClipFrame:GetFrameLevel() + 1)
         scrollArea:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -headerHeight)
         scrollArea:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
       else
+        if frame.headerClipFrame then
+          frame.headerClipFrame:Hide()
+        end
         headerRowFrame:SetParent(scrollArea.content)
         headerRowFrame:SetPoint("TOPLEFT", scrollArea.content, "TOPLEFT", 0, 0)
-        headerRowFrame:SetPoint("TOPRIGHT", scrollArea.content, "TOPRIGHT", 0, 0)
         headerRowFrame:SetFrameLevel(scrollArea.content:GetFrameLevel() + 1)
       end
 
       SetBackgroundColor(headerRowFrame, 0, 0, 0, HEADER_BACKGROUND_ALPHA)
+      headerRowFrame:SetWidth(layoutWidth)
       headerRowFrame:SetHeight(headerHeight)
       headerRowFrame:Show()
+      frame:syncStickyHeaderHorizontalOffset()
 
       columnOffsetX = 0
       TableForEach(headerRowFrame.cells, function(headerCellFrame) headerCellFrame:Hide() end)
       TableForEach(activeColumns, function(column, columnIndex)
-        local columnWidth = column.width or defaultColumnWidth
+        local columnWidth = frame:getResolvedColumnWidth(column)
         local columnAlign = column.align or "LEFT"
         local columnSortable = sortingEnabled and column.sorting and column.sorting.enabled
         local sortHighlight = columnSortable and sortState.columnId == column.id and sortState.direction ~= nil
@@ -411,6 +605,15 @@ local function createTable(options)
           headerCellFrame.label = headerCellFrame:CreateFontString("$parentLabel", "OVERLAY")
           headerCellFrame.label:SetWordWrap(false)
           headerCellFrame.tableFrame = frame
+          headerCellFrame.resizeHandle = CreateFrame("Button", "$parentResizeHandle", headerCellFrame)
+          headerCellFrame.resizeHandle:RegisterForClicks("AnyUp")
+          headerCellFrame.resizeHandle:SetFrameLevel(headerCellFrame:GetFrameLevel() + 5)
+          headerCellFrame.resizeHandle:SetScript("OnEnter", function(resizeHandle)
+            SetBackgroundColor(resizeHandle, 1, 1, 1, 0.18)
+          end)
+          headerCellFrame.resizeHandle:SetScript("OnLeave", function(resizeHandle)
+            SetBackgroundColor(resizeHandle, 1, 1, 1, 0)
+          end)
           BindScrollBoxMouseWheel(headerCellFrame, scrollArea:GetWheelScrollBox())
           headerRowFrame.cells[columnIndex] = headerCellFrame
         end
@@ -420,6 +623,28 @@ local function createTable(options)
         headerCellFrame:SetPoint("BOTTOMLEFT", headerRowFrame, "BOTTOMLEFT", columnOffsetX, 0)
         headerCellFrame:SetWidth(columnWidth)
         headerCellFrame:Show()
+        if headerResizable and column.id then
+          local resizeHandleWidth = headerConfig.resizeHandleWidth or 6
+          headerCellFrame.resizeHandle:ClearAllPoints()
+          headerCellFrame.resizeHandle:SetPoint("TOPRIGHT", headerCellFrame, "TOPRIGHT", resizeHandleWidth / 2, 0)
+          headerCellFrame.resizeHandle:SetPoint("BOTTOMRIGHT", headerCellFrame, "BOTTOMRIGHT", resizeHandleWidth / 2, 0)
+          headerCellFrame.resizeHandle:SetWidth(resizeHandleWidth)
+          headerCellFrame.resizeHandle:SetScript("OnMouseDown", function(_, button)
+            if button == "LeftButton" then
+              frame:startColumnResize(column)
+            elseif button == "RightButton" then
+              frame:ResetColumnWidth(column.id)
+            end
+          end)
+          headerCellFrame.resizeHandle:SetScript("OnDoubleClick", function()
+            frame:ResetColumnWidth(column.id)
+          end)
+          headerCellFrame.resizeHandle:Show()
+        else
+          headerCellFrame.resizeHandle:Hide()
+          headerCellFrame.resizeHandle:SetScript("OnMouseDown", nil)
+          headerCellFrame.resizeHandle:SetScript("OnDoubleClick", nil)
+        end
         headerCellFrame.label:SetFontObject(defaultHeaderFont)
         headerCellFrame.label:SetJustifyH(columnAlign)
         headerCellFrame.label:SetPoint("TOPLEFT", headerCellFrame, "TOPLEFT", defaultPadding, -defaultPadding)
@@ -484,6 +709,9 @@ local function createTable(options)
       end)
     elseif headerRowFrame then
       headerRowFrame:Hide()
+      if frame.headerClipFrame then
+        frame.headerClipFrame:Hide()
+      end
     end
 
     TableForEach(frame.rowFrames, function(rowFrame) rowFrame:Hide() end)
@@ -519,7 +747,7 @@ local function createTable(options)
       columnOffsetX = 0
       TableForEach(rowFrame.cells, function(bodyCellFrame) bodyCellFrame:Hide() end)
       TableForEach(activeColumns, function(column, columnIndex)
-        local columnWidth = column.width or defaultColumnWidth
+        local columnWidth = frame:getResolvedColumnWidth(column)
         local columnAlign = column.align or "LEFT"
         local cellData = rowData.data[column.dataIndex]
         local displayText = tostring(cellData and cellData.data or "")
@@ -604,10 +832,13 @@ local function createTable(options)
       shownHeight = shownHeight + headerHeight
     end
 
-    frame.layoutSize.shownWidth = layoutWidth
-    frame.layoutSize.shownHeight = shownHeight
+    frame.layoutSize.contentWidth = layoutWidth
+    frame.layoutSize.contentHeight = shownHeight
+    frame.layoutSize.shownWidth = math.min(layoutWidth, frame:GetWidth())
+    frame.layoutSize.shownHeight = math.min(shownHeight, frame:GetHeight())
 
     scrollArea:UpdateLayout(layoutWidth, scrollHeight)
+    frame:syncStickyHeaderHorizontalOffset()
 
     frame.isRendering = false
     if frame.renderQueued then
@@ -701,6 +932,13 @@ local function createTable(options)
     return layoutSize.shownWidth, layoutSize.shownHeight
   end
 
+  ---@return number width
+  ---@return number height
+  function frame:GetContentSize()
+    local layoutSize = frame.layoutSize
+    return layoutSize.contentWidth, layoutSize.contentHeight
+  end
+
   local saved = sorting and sorting.savedState
   if sorting and sorting.enabled and saved and type(saved.columnId) == "string" and saved.columnId ~= "" then
     frame.sortState.columnId = saved.columnId
@@ -716,13 +954,18 @@ local function createTable(options)
   frame.scrollArea = CreateScrollArea(frame, {
     name = "$parentScrollArea",
     vertical = true,
-    horizontal = false,
+    horizontal = (frame.options.scroll and frame.options.scroll.horizontal) or (frame.options.header and frame.options.header.resizable) or false,
     wheelPanExtent = (frame.options.rowStyle and frame.options.rowStyle.height) or LiqUI.Constants.layout.sizes.row,
   })
 
   frame.scrollArea:HookScript("OnSizeChanged", function()
     frame:Render()
   end)
+  if frame.scrollArea.horizontalScrollBox then
+    frame.scrollArea.horizontalScrollBox:HookScript("OnUpdate", function()
+      frame:syncStickyHeaderHorizontalOffset()
+    end)
+  end
 
   frame:runTable(false)
   return frame

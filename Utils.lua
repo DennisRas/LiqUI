@@ -564,7 +564,7 @@ local function updateScrollAreaLayout(scrollArea, contentWidth, contentHeight)
     scrollArea.verticalScrollBar:SetHideIfUnscrollable(true)
     scrollArea.verticalScrollBar:ClearAllPoints()
     scrollArea.verticalScrollBar:SetPoint("TOPRIGHT", scrollArea.container, "TOPRIGHT", 0, 0)
-    scrollArea.verticalScrollBar:SetPoint("BOTTOMRIGHT", scrollArea.container, "BOTTOMRIGHT", 0, 0)
+    scrollArea.verticalScrollBar:SetPoint("BOTTOMRIGHT", scrollArea.container, "BOTTOMRIGHT", 0, showHorizontal and LiqUI.Constants.layout.sizes.scrollbar.thickness or 0)
   end
 
   if scrollArea.horizontalScrollBar then
@@ -573,7 +573,13 @@ local function updateScrollAreaLayout(scrollArea, contentWidth, contentHeight)
     scrollArea.horizontalScrollBar:SetHeight(LiqUI.Constants.layout.sizes.scrollbar.thickness)
     scrollArea.horizontalScrollBar:ClearAllPoints()
     scrollArea.horizontalScrollBar:SetPoint("BOTTOMLEFT", scrollArea.container, "BOTTOMLEFT", 0, 0)
-    scrollArea.horizontalScrollBar:SetPoint("BOTTOMRIGHT", scrollArea.container, "BOTTOMRIGHT", 0, 0)
+    scrollArea.horizontalScrollBar:SetPoint("BOTTOMRIGHT", scrollArea.container, "BOTTOMRIGHT", showVertical and -LiqUI.Constants.layout.sizes.scrollbar.thickness or 0, 0)
+  end
+
+  if scrollArea.verticalScrollBox and scrollArea.horizontal and scrollArea.vertical then
+    scrollArea.verticalScrollBox:ClearAllPoints()
+    scrollArea.verticalScrollBox:SetPoint("TOPLEFT", scrollArea.container, "TOPLEFT", 0, 0)
+    scrollArea.verticalScrollBox:SetPoint("BOTTOMRIGHT", scrollArea.container, "BOTTOMRIGHT", 0, showHorizontal and LiqUI.Constants.layout.sizes.scrollbar.thickness or 0)
   end
 
   if not showVertical and scrollArea.verticalScrollBox then
