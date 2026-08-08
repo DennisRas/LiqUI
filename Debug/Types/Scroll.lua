@@ -32,6 +32,9 @@
 ---@field UpdateLayout fun(self: LiqUI_ScrollArea, contentWidth: number?, contentHeight: number?)
 ---@field ScrollToTop fun(self: LiqUI_ScrollArea)
 ---@field SetWheelPanExtent fun(self: LiqUI_ScrollArea, pixels: number)
+---@field requestedContentWidth number?
+---@field requestedContentHeight number?
+---@field isUpdatingLayout boolean?
 
 ---@class LiqUI_ScrollingEditBoxHost
 ---@field textBox ScrollingEditBoxTemplate
