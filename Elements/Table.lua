@@ -102,7 +102,7 @@ end
 ---@param maxValue number|nil
 ---@return number
 local function clampColumnWidth(value, minValue, maxValue)
-  local width = value
+  local width = math.floor(value + 0.5)
   if minValue and width < minValue then
     width = minValue
   end
@@ -345,12 +345,18 @@ local function createTable(options)
       return
     end
     local resolvedWidth = clampColumnWidth(width, frame:getColumnMinWidth(column), column.maxWidth)
+    if transient and frame:getResolvedColumnWidth(column) == resolvedWidth then
+      return
+    end
     if not transient and frame.db then
       frame.db.columnWidths = frame.db.columnWidths or {}
       frame.db.columnWidths[column.id] = resolvedWidth
     end
     column.resolvedWidth = resolvedWidth
     frame:runTable(false)
+    if frame.options.onLayoutChanged then
+      frame.options.onLayoutChanged(frame, frame.layoutSize.contentWidth, frame.layoutSize.contentHeight, transient == true)
+    end
   end
 
   ---@param columnId string
@@ -364,6 +370,9 @@ local function createTable(options)
     end
     column.resolvedWidth = nil
     frame:runTable(false)
+    if frame.options.onLayoutChanged then
+      frame.options.onLayoutChanged(frame, frame.layoutSize.contentWidth, frame.layoutSize.contentHeight, false)
+    end
   end
 
   function frame:scrollToTop()
@@ -619,6 +628,7 @@ local function createTable(options)
         end
 
         SetBackgroundColor(headerCellFrame, 0, 0, 0, 0)
+        headerCellFrame:ClearAllPoints()
         headerCellFrame:SetPoint("TOPLEFT", headerRowFrame, "TOPLEFT", columnOffsetX, 0)
         headerCellFrame:SetPoint("BOTTOMLEFT", headerRowFrame, "BOTTOMLEFT", columnOffsetX, 0)
         headerCellFrame:SetWidth(columnWidth)
@@ -736,9 +746,10 @@ local function createTable(options)
       end
 
       rowFrame:SetParent(scrollArea.content)
+      rowFrame:ClearAllPoints()
       rowFrame:SetPoint("TOPLEFT", scrollArea.content, "TOPLEFT", 0, -rowOffsetY)
-      rowFrame:SetPoint("TOPRIGHT", scrollArea.content, "TOPRIGHT", 0, -rowOffsetY)
       rowFrame:SetFrameLevel(scrollArea.content:GetFrameLevel() + 1)
+      rowFrame:SetWidth(layoutWidth)
       rowFrame:SetHeight(rowHeight)
       rowFrame:Show()
       rowOffsetY = rowOffsetY + rowHeight
@@ -770,6 +781,7 @@ local function createTable(options)
           rowFrame.cells[columnIndex] = bodyCellFrame
         end
 
+        bodyCellFrame:ClearAllPoints()
         bodyCellFrame:SetPoint("TOPLEFT", rowFrame, "TOPLEFT", columnOffsetX, 0)
         bodyCellFrame:SetPoint("BOTTOMLEFT", rowFrame, "BOTTOMLEFT", columnOffsetX, 0)
         bodyCellFrame:SetWidth(columnWidth)

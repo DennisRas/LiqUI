@@ -84,6 +84,7 @@
 ---@field cellStyle LiqUI_TableOptionsCellStyle?
 ---@field sorting LiqUI_TableOptionsSorting?
 ---@field scroll LiqUI_TableOptionsScroll?
+---@field onLayoutChanged fun(frame: LiqUI_TableInstance, contentWidth: number, contentHeight: number, transient: boolean)?
 
 ---@class LiqUI_TableSortState
 ---@field columnId string|nil

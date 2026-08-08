@@ -479,14 +479,27 @@ end
 ---@param contentWidth number|nil
 ---@param contentHeight number|nil
 local function updateScrollAreaLayout(scrollArea, contentWidth, contentHeight)
+  if scrollArea.isUpdatingLayout then
+    return
+  end
+  scrollArea.isUpdatingLayout = true
+
   local overflowTolerance = LiqUI.Constants.layout.sizes.scrollbar.overflowTolerance
 
-  contentWidth = contentWidth or scrollArea.content:GetWidth()
-  contentHeight = contentHeight or scrollArea.content:GetHeight()
+  if contentWidth then
+    scrollArea.requestedContentWidth = contentWidth
+  end
+  if contentHeight then
+    scrollArea.requestedContentHeight = contentHeight
+  end
+
+  contentWidth = contentWidth or scrollArea.requestedContentWidth or scrollArea.content:GetWidth()
+  contentHeight = contentHeight or scrollArea.requestedContentHeight or scrollArea.content:GetHeight()
 
   local containerWidth = scrollArea.container:GetWidth()
   local containerHeight = scrollArea.container:GetHeight()
   if containerWidth <= 0 or containerHeight <= 0 then
+    scrollArea.isUpdatingLayout = nil
     return
   end
 
@@ -588,6 +601,7 @@ local function updateScrollAreaLayout(scrollArea, contentWidth, contentHeight)
   if not showHorizontal and scrollArea.horizontalScrollBox then
     scrollArea.horizontalScrollBox:ScrollToBegin()
   end
+  scrollArea.isUpdatingLayout = nil
 end
 
 ---WowScrollBox viewport with optional horizontal and/or vertical scrolling.
@@ -668,6 +682,8 @@ function Utils.CreateScrollArea(parent, options)
     horizontalScrollBox = horizontalScrollBox,
     horizontalScrollBar = horizontalScrollBar,
     wheelPanExtent = wheelPanExtent,
+    requestedContentWidth = 1,
+    requestedContentHeight = 1,
   }
 
   ---@return Frame?

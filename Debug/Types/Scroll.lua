@@ -14,6 +14,9 @@
 ---@field horizontalScrollBox Frame|nil
 ---@field horizontalScrollBar EventFrame|nil
 ---@field wheelPanExtent number
+---@field requestedContentWidth number?
+---@field requestedContentHeight number?
+---@field isUpdatingLayout boolean?
 
 ---@class LiqUI_ScrollingEditBoxHost
 ---@field textBox Frame
