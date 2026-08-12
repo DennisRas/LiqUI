@@ -8,18 +8,15 @@ LiqUIDB = LiqUIDB or {}
 ---@return LiqUI_DB
 local function getEmbedDB()
   local liqui = LiqUIDB.liqui
-  if type(liqui) ~= "table" or type(liqui.windows) ~= "table" or type(liqui.tables) ~= "table" or type(liqui.loggers) ~= "table" then
+  if type(liqui) ~= "table" or type(liqui.windows) ~= "table" or type(liqui.tables) ~= "table" then
     ---@type LiqUI_DB
     LiqUIDB.liqui = {
       windows = type(liqui) == "table" and type(liqui.windows) == "table" and liqui.windows or {},
       tables = type(liqui) == "table" and type(liqui.tables) == "table" and liqui.tables or {},
-      loggers = type(liqui) == "table" and type(liqui.loggers) == "table" and liqui.loggers or {},
     }
   end
   return LiqUIDB.liqui
 end
-
-local liqui = LiqUI:New({ name = "LiqUI", db = getEmbedDB() })
 
 local galleryWindow
 local galleryTable
@@ -76,9 +73,18 @@ local function ensureGallery()
     return
   end
 
+  local db = getEmbedDB()
+  ---@type LiqUI_WindowDB
+  local windowStorage = db.windows.Gallery or {}
+  db.windows.Gallery = windowStorage
+  ---@type LiqUI_TableDB
+  local tableStorage = db.tables.Gallery or { hiddenColumns = {} }
+  db.tables.Gallery = tableStorage
+
   ---@type LiqUI_WindowOptions
   local windowOptions = {
-    name = "Gallery",
+    name = "LiqUIGallery",
+    storage = windowStorage,
     title = "LiqUI Gallery",
     width = 520,
     height = 400,
@@ -103,11 +109,12 @@ local function ensureGallery()
     },
   }
 
-  galleryWindow = liqui.Window:New(windowOptions)
+  galleryWindow = LiqUI:NewElement("Window", windowOptions)
 
   ---@type LiqUI_TableOptions
   local tableConfig = {
-    name = "Gallery",
+    name = "LiqUIGallery",
+    storage = tableStorage,
     columns = {
       {
         id = "name",
@@ -159,7 +166,7 @@ local function ensureGallery()
     },
   }
 
-  galleryTable = liqui.Table:New(tableConfig)
+  galleryTable = LiqUI:NewElement("Table", tableConfig)
   galleryTable:SetParent(galleryWindow.body)
   galleryTable:SetAllPoints(galleryWindow.body)
   galleryTable:SetData(galleryData())

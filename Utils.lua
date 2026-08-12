@@ -8,36 +8,16 @@ end
 local Utils = {}
 LiqUI.Utils = Utils
 
----@generic T
----@param instance LiqUI_Instance?
----@param prototype T
----@param state table?
----@return T
-function Utils.BindManager(instance, prototype, state)
-  local manager = state or {}
-  if instance then
-    manager.embed = instance
-  end
-  setmetatable(manager, {
-    __index = function(managerTable, key)
-      local value = prototype[key]
-      if value ~= nil then
-        return value
-      end
-      local embed = managerTable.embed
-      if embed then
-        return embed[key]
-      end
-    end,
-  })
-  return manager
-end
-
 ---Merge defaults with options; ensure parent (default UIParent).
 function Utils.PrepareOptions(defaults, options)
   local opts = Utils.MergeDeep(defaults or {parent = UIParent}, options or {})
   opts.parent = opts.parent or UIParent
   return opts
+end
+
+---@return number
+function Utils.GetMaxWindowWidth()
+  return GetScreenWidth() - LiqUI.Constants.layout.sizes.maxWindowWidthMargin
 end
 
 ---Create a font string with theme text color. anchor: { point, relativeTo, relativePoint, x, y }.

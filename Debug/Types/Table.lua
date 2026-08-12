@@ -67,7 +67,8 @@
 ---@field onStateChanged fun(state: LiqUI_TableSortState)?
 
 ---@class LiqUI_TableOptions
----@field name string?
+---@field name string
+---@field storage LiqUI_TableDB?
 ---@field columns LiqUI_TableOptionsColumn[]?
 ---@field header LiqUI_TableOptionsHeader?
 ---@field rowStyle LiqUI_TableOptionsRowStyle?
@@ -85,10 +86,6 @@
 ---@class LiqUI_TableLayoutSize
 ---@field shownWidth number
 ---@field shownHeight number
-
----@class LiqUI_Table
----@field embed LiqUI_Instance?
----@field instances table<string, LiqUI_TableInstance>
 
 ---@class LiqUI_TableCellFrame : Button
 ---@field label FontString

@@ -4,6 +4,14 @@ if not LiqUI then
   return
 end
 
+local hostAddon = ...
+local mediaRoot
+if hostAddon == "LiqUI" then
+  mediaRoot = "Interface/AddOns/LiqUI/Media/"
+else
+  mediaRoot = "Interface/AddOns/" .. tostring(hostAddon) .. "/Libs/LiqUI/Media/"
+end
+
 local defaultBackdropTexture = "Interface/BUTTONS/WHITE8X8"
 
 local colors = {
@@ -102,17 +110,6 @@ Constants.form = {
   labelOffsetY = -2,
 }
 
-Constants.window = {
-  titlebarHeight = 30,
-  padding = 8,
-  titlebarIconLeft = 6,
-  titlebarIconSize = 20,
-  closeButtonIconSize = 10,
-  closeButtonIconColor = {0.7, 0.7, 0.7, 1},
-  iconCloseTexture = "Interface/AddOns/LiqUI/Media/Icon_Close.blp",
-  maxWindowWidthMargin = 100,
-}
-
 Constants.layout = {
   sizes = {
     padding = 8,
@@ -132,8 +129,8 @@ Constants.layout = {
   },
   media = {
     whiteSquare = "Interface/BUTTONS/WHITE8X8",
-    iconClose = "Interface/AddOns/LiqUI/Media/Icon_Close.blp",
-    iconSettings = "Interface/AddOns/LiqUI/Media/Icon_Settings.blp",
+    iconClose = mediaRoot .. "Icon_Close.blp",
+    iconSettings = mediaRoot .. "Icon_Settings.blp",
   },
   colors = {
     primary = {r = 0.2, g = 0.6, b = 1.0, a = 1.0},
