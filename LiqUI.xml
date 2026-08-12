@@ -3,7 +3,7 @@
   <Script file="LiqUI.lua" />
   <Script file="Constants.lua" />
   <Script file="Utils.lua" />
-  <Script file="Modules/Window.lua" />
-  <Script file="Modules/Table.lua" />
+  <Script file="Elements/Window.lua" />
+  <Script file="Elements/Table.lua" />
   <Script file="Modules/Logger.lua" />
 </Ui>

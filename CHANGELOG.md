@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.0 - 2026-08-12
+
+- Updated window and table layout saving so size and position persist per window name.
+- Updated the debug log to one shared window with an addon dropdown instead of a separate log window per host.
+- Updated TOC number to support patch 12.1.
+- Fixed close and settings titlebar icons when LiqUI is embedded under a host addon. Thank you @MOSS099, @benhilty, and @ynazar1.
+
 ## v1.2.0 - 2026-07-22
 
 - Fixed window position after drag, reload, column resize, and scale changes so the top-left corner stays on the same screen pixel from 80% to 200% scale.

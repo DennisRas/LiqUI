@@ -8,18 +8,20 @@ end
 local Logger = {}
 LiqUI.Logger = Logger
 
-local TableMergeOptions = LiqUI.Utils.TableMergeOptions
 local CreateScrollingEditBox = LiqUI.Utils.CreateScrollingEditBox
 
----@class LiqUI_LoggerInstance
-local LoggerInstance = {}
+local LINES_MAX = 200
+local WINDOW_WIDTH = 1200
+local WINDOW_HEIGHT = 600
+local BODY_PADDING = LiqUI.Constants.layout.sizes.padding
+local CLEAR_ICON_SIZE = 12
 
----@param instance LiqUI_Instance
-function Logger:Embed(instance)
-  ---@type LiqUI_Logger
-  local manager = LiqUI.Utils.BindManager(instance, self, { instances = {} })
-  instance.Logger = manager
-end
+---@type table<string, LiqUI_LoggerHandle>
+local handles = {}
+
+local selectedAddonName = nil
+local window = nil
+local refreshPending = false
 
 ---@param textBox Frame
 ---@param text string
@@ -40,111 +42,246 @@ local function applyLogText(textBox, text, scrollToEnd)
   end
 end
 
----@param logger LiqUI_LoggerInstance
-local function trimLoggerLines(logger)
-  local linesMax = logger.options.linesMax or 200
-  while #logger.db.lines > linesMax do
-    table.remove(logger.db.lines, 1)
+---@param storage LiqUI_LoggerDB
+local function trimLoggerLines(storage)
+  while #storage.lines > LINES_MAX do
+    table.remove(storage.lines, 1)
   end
 end
 
----@param options LiqUI_LoggerOptions?
----@return LiqUI_LoggerInstance
-function Logger:New(options)
-  if not self.db then
-    error("LiqUI.Logger:New requires a LiqUI instance", 2)
+---@param storage LiqUI_LoggerDB
+local function ensureLoggerStorage(storage)
+  if type(storage.lines) ~= "table" then
+    storage.lines = {}
+  end
+  if storage.autoScroll == nil then
+    storage.autoScroll = true
+  end
+  if storage.autoShow == nil then
+    storage.autoShow = false
+  end
+end
+
+---@return LiqUI_LoggerHandle[]
+local function getLoggerHandles()
+  ---@type LiqUI_LoggerHandle[]
+  local list = {}
+  for _, handle in pairs(handles) do
+    table.insert(list, handle)
+  end
+  table.sort(list, function(a, b)
+    return strcmputf8i(a.title, b.title) < 0
+  end)
+  return list
+end
+
+---@return LiqUI_LoggerHandle?
+local function getSelectedHandle()
+  local list = getLoggerHandles()
+  if #list == 0 then
+    return nil
+  end
+  if selectedAddonName then
+    for index = 1, #list do
+      if list[index].name == selectedAddonName then
+        return list[index]
+      end
+    end
+  end
+  selectedAddonName = list[1].name
+  return list[1]
+end
+
+---@param handle LiqUI_LoggerHandle
+---@param level string|nil
+---@param prefixOrMessage string
+---@param message string?
+local function appendLine(handle, level, prefixOrMessage, message)
+  local storage = handle.storage
+  local lineText
+  if level then
+    if message ~= nil then
+      lineText = format("[%s] [%s] [%s] %s", date("%H:%M:%S"), level, prefixOrMessage, message)
+    else
+      lineText = format("[%s] [%s] %s", date("%H:%M:%S"), level, prefixOrMessage)
+    end
+  elseif message ~= nil then
+    lineText = format("[%s] [%s] %s", date("%H:%M:%S"), prefixOrMessage, message)
+  else
+    lineText = format("[%s] %s", date("%H:%M:%S"), prefixOrMessage)
+  end
+  table.insert(storage.lines, lineText)
+  trimLoggerLines(storage)
+  if storage.autoShow then
+    selectedAddonName = handle.name
+    Logger:Show()
+  end
+  Logger:QueueRefresh()
+end
+
+---@param options LiqUI_NewLoggerOptions
+---@return LiqUI_LoggerHandle
+function LiqUI:NewLogger(options)
+  if type(options) ~= "table" then
+    error("LiqUI:NewLogger requires options", 2)
+  end
+  if type(options.name) ~= "string" or options.name == "" then
+    error("LiqUI:NewLogger requires name", 2)
+  end
+  if type(options.storage) ~= "table" then
+    error("LiqUI:NewLogger requires storage", 2)
   end
 
-  ---@type LiqUI_LoggerOptions
-  local defaultOptions = {
-    name = "Logger",
-    title = "Log",
-    width = 1200,
-    height = 600,
-    bodyPadding = LiqUI.Constants.layout.sizes.padding,
-    linesMax = 200,
-    clearIconSize = 12,
-    fontObject = "ChatFontSmall",
+  ensureLoggerStorage(options.storage)
+
+  local existing = handles[options.name]
+  if existing then
+    existing.title = options.title or existing.title or options.name
+    existing.storage = options.storage
+    return existing
+  end
+
+  ---@type LiqUI_LoggerHandle
+  local handle = {
+    name = options.name,
+    title = options.title or options.name,
+    storage = options.storage,
   }
-  ---@type LiqUI_LoggerOptions
-  local mergedOptions = {}
-  TableMergeOptions(mergedOptions, defaultOptions)
-  TableMergeOptions(mergedOptions, options or {})
 
-  local loggerName = mergedOptions.name or "Logger"
-  if loggerName == "" then
-    error("LiqUI Logger: options.name is required", 2)
+  ---@param prefixOrMessage string
+  ---@param message string?
+  function handle:Log(prefixOrMessage, message)
+    appendLine(self, nil, prefixOrMessage, message)
   end
 
-  if not self.db.loggers[loggerName] then
-    ---@type LiqUI_LoggerDB
-    self.db.loggers[loggerName] = {
-      autoScroll = true,
-      autoShow = false,
-      lines = {},
-    }
+  ---@param message string
+  function handle:Warn(message)
+    appendLine(self, "WARN", message)
   end
 
-  ---@type LiqUI_LoggerInstance
-  local logger = setmetatable({
-    embed = self.embed,
-    db = self.db.loggers[loggerName],
-    options = mergedOptions,
-    refreshPending = false,
-    window = nil,
-  }, { __index = LoggerInstance })
-  self.instances[loggerName] = logger
-  return logger
+  ---@param message string
+  function handle:Error(message)
+    appendLine(self, "ERROR", message)
+  end
+
+  function handle:Clear()
+    wipe(self.storage.lines)
+    selectedAddonName = self.name
+    Logger:QueueRefresh()
+  end
+
+  ---@param state boolean|nil
+  function handle:Toggle(state)
+    selectedAddonName = self.name
+    Logger:Toggle(state)
+  end
+
+  function handle:Show()
+    selectedAddonName = self.name
+    Logger:Show()
+  end
+
+  function handle:Hide()
+    Logger:Hide()
+  end
+
+  handles[options.name] = handle
+  return handle
 end
 
-function LoggerInstance:Initialize()
-  self:Render()
-end
-
-function LoggerInstance:LogSession()
-  table.insert(
-    self.db.lines,
-    format("[%s] [Session] ---------- %s ----------", date("%H:%M:%S"), date("%Y-%m-%d %H:%M:%S"))
-  )
-  trimLoggerLines(self)
+function Logger:Clear()
+  local handle = getSelectedHandle()
+  if not handle then
+    return
+  end
+  wipe(handle.storage.lines)
   self:QueueRefresh()
 end
 
-function LoggerInstance:Render()
-  if not self.window then
-    local options = self.options
+function Logger:QueueRefresh()
+  if refreshPending then
+    return
+  end
+  refreshPending = true
+  C_Timer.After(0, function()
+    refreshPending = false
+    self:Refresh()
+  end)
+end
+
+function Logger:Refresh()
+  if not window then
+    return
+  end
+  if not window:IsVisible() then
+    return
+  end
+  local textBox = window.body.textBox
+  if not textBox then
+    return
+  end
+  local handle = getSelectedHandle()
+  local lines = handle and handle.storage.lines or {}
+  local autoScroll = handle and handle.storage.autoScroll
+  local text = table.concat(lines, "\n")
+  applyLogText(textBox, text, autoScroll)
+  window:SetTitle(handle and handle.title or "Log")
+end
+
+function Logger:Render()
+  if not window then
     ---@type LiqUI_WindowOptions
     local windowOptions = {
-      name = options.name,
-      title = options.title,
-      width = options.width,
-      height = options.height,
+      name = "LiqUILogger",
+      title = "Log",
+      width = WINDOW_WIDTH,
+      height = WINDOW_HEIGHT,
       titlebarButtons = {
         {
-          name = "ClearButton",
-          icon = options.clearIcon,
-          tooltipTitle = "Clear log",
-          tooltipDescription = "Remove all lines from the log window.",
-          onClick = function()
-            self:Clear()
+          name = "AddonSelect",
+          icon = LiqUI.Constants.layout.media.iconSettings,
+          tooltipTitle = "Addon",
+          tooltipDescription = "Choose which addon's log to show.",
+          onMenu = function(_, rootMenu)
+            local list = getLoggerHandles()
+            for index = 1, #list do
+              local handle = list[index]
+              rootMenu:CreateRadio(
+                handle.title,
+                function()
+                  return selectedAddonName == handle.name
+                end,
+                function()
+                  selectedAddonName = handle.name
+                  Logger:Refresh()
+                end
+              )
+            end
           end,
-          iconSize = options.clearIconSize,
+        },
+        {
+          name = "ClearButton",
+          icon = LiqUI.Constants.layout.media.iconClose,
+          tooltipTitle = "Clear log",
+          tooltipDescription = "Remove all lines from the selected addon's log.",
+          onClick = function()
+            Logger:Clear()
+          end,
+          iconSize = CLEAR_ICON_SIZE,
         },
       },
     }
-    local window = self.embed.Window:New(windowOptions)
+    window = LiqUI:NewElement("Window", windowOptions)
     window:SetScript("OnShow", function()
-      if options.onWindowShow then
-        options.onWindowShow(window)
-      end
-      self:Render()
+      window:Render()
+      Logger:Refresh()
     end)
 
     ---@type LiqUI_WindowBody
     local body = window.body
-    local scrollHost = CreateScrollingEditBox(body, options.bodyPadding)
+    local scrollHost = CreateScrollingEditBox(body, BODY_PADDING)
     local textBox = scrollHost.textBox
-    textBox:SetFontObject(options.fontObject or "ChatFontSmall")
+    textBox:SetFontObject("ChatFontSmall")
 
     local editBox = textBox:GetEditBox()
     editBox.logText = ""
@@ -161,69 +298,27 @@ function LoggerInstance:Render()
 
     window.body.textBox = textBox
     window.body.scrollBar = scrollHost.scrollBar
-    self.window = window
   end
 
-  local textBox = self.window.body.textBox
-  if not textBox then
-    return
-  end
-
-  if not self.window:IsVisible() then
-    return
-  end
-
-  local text = table.concat(self.db.lines, "\n")
-  local editBox = textBox:GetEditBox()
-  if editBox.logText ~= text then
-    applyLogText(textBox, text, self.db.autoScroll)
-  end
-end
-
-function LoggerInstance:QueueRefresh()
-  if self.refreshPending then
-    return
-  end
-  self.refreshPending = true
-  C_Timer.After(0, function()
-    self.refreshPending = false
-    self:Render()
-  end)
+  self:Refresh()
 end
 
 ---@param state boolean|nil
-function LoggerInstance:Toggle(state)
-  if not self.window then
+function Logger:Toggle(state)
+  self:Render()
+  if not window then
     return
   end
-  self.window:Toggle(state)
-  if self.window:IsVisible() then
-    self:Render()
+  window:Toggle(state)
+  if window:IsVisible() then
+    self:Refresh()
   end
 end
 
-function LoggerInstance:Clear()
-  wipe(self.db.lines)
-  self:QueueRefresh()
-end
-
----@param prefix string
----@param message string
-function LoggerInstance:Log(prefix, message)
-  local lineText = format("[%s] [%s] %s", date("%H:%M:%S"), prefix, message)
-  table.insert(self.db.lines, lineText)
-  trimLoggerLines(self)
-
-  if self.db.autoShow then
-    self:Show()
-  end
-  self:QueueRefresh()
-end
-
-function LoggerInstance:Show()
+function Logger:Show()
   self:Toggle(true)
 end
 
-function LoggerInstance:Hide()
+function Logger:Hide()
   self:Toggle(false)
 end

@@ -4,10 +4,6 @@ if not LiqUI then
   return
 end
 
----@class LiqUI_Table
-local Table = {}
-LiqUI.Table = Table
-
 local BindScrollBoxMouseWheel = LiqUI.Utils.BindScrollBoxMouseWheel
 local CreateScrollArea = LiqUI.Utils.CreateScrollArea
 local SetBackgroundColor = LiqUI.Utils.SetBackgroundColor
@@ -101,20 +97,10 @@ local function validateSortingColumns(columns, sorting)
   end
 end
 
----@param instance LiqUI_Instance
-function Table:Embed(instance)
-  ---@type LiqUI_Table
-  local manager = LiqUI.Utils.BindManager(instance, self, { instances = {} })
-  instance.Table = manager
-end
-
 ---Create a new table frame
----@param options LiqUI_TableOptions?
+---@param options LiqUI_TableOptions
 ---@return LiqUI_TableInstance
-function Table:New(options)
-  if not self.db then
-    error("LiqUI.Table:New requires a LiqUI instance", 2)
-  end
+local function createTable(options)
   if not options then
     error("LiqUI Table: options is required", 2)
   end
@@ -122,12 +108,13 @@ function Table:New(options)
     error("LiqUI Table: options.name is required", 2)
   end
 
-  local isntanceName = options.name
+  local instanceName = options.name
   ---@type LiqUI_TableInstance
-  local frame = CreateFrame("Frame", "LiqUITable" .. self.name .. isntanceName) ---@diagnostic disable-line:assign-type-mismatch
+  local frame = CreateFrame("Frame", "LiqUITable" .. instanceName:gsub("[^%w]", "")) ---@diagnostic disable-line:assign-type-mismatch
 
   ---@type LiqUI_TableOptions
   local defaultOptions = {
+    name = "",
     header = {
       enabled = true,
       sticky = false,
@@ -171,11 +158,12 @@ function Table:New(options)
   end
 
   ---@type LiqUI_TableDB
-  local tableDb = self.db.tables[isntanceName]
+  local tableDb = options.storage
   if not tableDb then
     ---@type LiqUI_TableDB
     tableDb = { hiddenColumns = {} }
-    self.db.tables[isntanceName] = tableDb
+  elseif not tableDb.hiddenColumns then
+    tableDb.hiddenColumns = {}
   end
 
   if sorting then
@@ -339,6 +327,13 @@ function Table:New(options)
   end
 
   function frame:Render()
+    if frame.isRendering then
+      frame.renderQueued = true
+      return
+    end
+    frame.isRendering = true
+    frame.renderQueued = false
+
     local sortState = frame.sortState
     local headerConfig = frame.options.header
     local rowStyle = frame.options.rowStyle
@@ -613,6 +608,11 @@ function Table:New(options)
     frame.layoutSize.shownHeight = shownHeight
 
     scrollArea:UpdateLayout(layoutWidth, scrollHeight)
+
+    frame.isRendering = false
+    if frame.renderQueued then
+      frame:Render()
+    end
   end
 
   function frame:ScrollToTop()
@@ -725,6 +725,7 @@ function Table:New(options)
   end)
 
   frame:runTable(false)
-  self.instances[isntanceName] = frame
   return frame
 end
+
+LiqUI:RegisterElement("Table", createTable)
