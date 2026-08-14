@@ -32,6 +32,9 @@
 ---@field dataIndex integer?
 ---@field headerText string|nil
 ---@field width number
+---@field minWidth number?
+---@field maxWidth number?
+---@field resolvedWidth number?
 ---@field align "LEFT"|"CENTER"|"RIGHT"|nil
 ---@field hideable boolean|nil
 ---@field render? fun(cell: LiqUI_TableDataCellExtended|nil, row: LiqUI_TableDataRowExtended, rowIndex: integer): LiqUI_TableDataValue|nil
@@ -48,6 +51,12 @@
 ---@field sticky boolean?
 ---@field height number?
 ---@field fontObject string?
+---@field resizable boolean?
+---@field resizeHandleWidth number?
+---@field defaultMinColumnWidth number?
+
+---@class LiqUI_TableOptionsScroll
+---@field horizontal boolean?
 
 ---@class LiqUI_TableOptionsRowStyle
 ---@field height number?
@@ -74,6 +83,8 @@
 ---@field rowStyle LiqUI_TableOptionsRowStyle?
 ---@field cellStyle LiqUI_TableOptionsCellStyle?
 ---@field sorting LiqUI_TableOptionsSorting?
+---@field scroll LiqUI_TableOptionsScroll?
+---@field onLayoutChanged fun(frame: LiqUI_TableInstance, contentWidth: number, contentHeight: number, transient: boolean)?
 
 ---@class LiqUI_TableSortState
 ---@field columnId string|nil
@@ -82,8 +93,11 @@
 ---@class LiqUI_TableDB
 ---@field sortState LiqUI_TableSortState?
 ---@field hiddenColumns table<string, boolean>
+---@field columnWidths table<string, number>?
 
 ---@class LiqUI_TableLayoutSize
+---@field contentWidth number
+---@field contentHeight number
 ---@field shownWidth number
 ---@field shownHeight number
 
@@ -93,6 +107,7 @@
 ---@field columnIndex integer
 ---@field columnId string|nil
 ---@field tableFrame LiqUI_TableInstance
+---@field resizeHandle Button?
 
 ---@class LiqUI_TableRowFrame : Frame
 ---@field cells table<integer, LiqUI_TableCellFrame>
@@ -101,8 +116,15 @@
 ---@field options LiqUI_TableOptions
 ---@field data LiqUI_TableDataRowExtended[]
 ---@field headerRowFrame LiqUI_TableRowFrame|nil
+---@field headerClipFrame Frame|nil
 ---@field rowFrames table<integer, LiqUI_TableRowFrame>
 ---@field scrollArea LiqUI_ScrollArea
 ---@field layoutSize LiqUI_TableLayoutSize
 ---@field db LiqUI_TableDB
 ---@field sortState LiqUI_TableSortState
+---@field resizeState LiqUI_TableResizeState?
+
+---@class LiqUI_TableResizeState
+---@field columnId string
+---@field startCursorX number
+---@field startWidth number

@@ -479,6 +479,11 @@ end
 ---@param contentWidth number|nil
 ---@param contentHeight number|nil
 local function updateScrollAreaLayout(scrollArea, contentWidth, contentHeight)
+  if scrollArea.isUpdatingLayout then
+    return
+  end
+  scrollArea.isUpdatingLayout = true
+
   local overflowTolerance = LiqUI.Constants.layout.sizes.scrollbar.overflowTolerance
 
   contentWidth = contentWidth or scrollArea.content:GetWidth()
@@ -487,6 +492,7 @@ local function updateScrollAreaLayout(scrollArea, contentWidth, contentHeight)
   local containerWidth = scrollArea.container:GetWidth()
   local containerHeight = scrollArea.container:GetHeight()
   if containerWidth <= 0 or containerHeight <= 0 then
+    scrollArea.isUpdatingLayout = nil
     return
   end
 
@@ -564,7 +570,7 @@ local function updateScrollAreaLayout(scrollArea, contentWidth, contentHeight)
     scrollArea.verticalScrollBar:SetHideIfUnscrollable(true)
     scrollArea.verticalScrollBar:ClearAllPoints()
     scrollArea.verticalScrollBar:SetPoint("TOPRIGHT", scrollArea.container, "TOPRIGHT", 0, 0)
-    scrollArea.verticalScrollBar:SetPoint("BOTTOMRIGHT", scrollArea.container, "BOTTOMRIGHT", 0, 0)
+    scrollArea.verticalScrollBar:SetPoint("BOTTOMRIGHT", scrollArea.container, "BOTTOMRIGHT", 0, showHorizontal and LiqUI.Constants.layout.sizes.scrollbar.thickness or 0)
   end
 
   if scrollArea.horizontalScrollBar then
@@ -573,7 +579,13 @@ local function updateScrollAreaLayout(scrollArea, contentWidth, contentHeight)
     scrollArea.horizontalScrollBar:SetHeight(LiqUI.Constants.layout.sizes.scrollbar.thickness)
     scrollArea.horizontalScrollBar:ClearAllPoints()
     scrollArea.horizontalScrollBar:SetPoint("BOTTOMLEFT", scrollArea.container, "BOTTOMLEFT", 0, 0)
-    scrollArea.horizontalScrollBar:SetPoint("BOTTOMRIGHT", scrollArea.container, "BOTTOMRIGHT", 0, 0)
+    scrollArea.horizontalScrollBar:SetPoint("BOTTOMRIGHT", scrollArea.container, "BOTTOMRIGHT", showVertical and -LiqUI.Constants.layout.sizes.scrollbar.thickness or 0, 0)
+  end
+
+  if scrollArea.verticalScrollBox and scrollArea.horizontal and scrollArea.vertical then
+    scrollArea.verticalScrollBox:ClearAllPoints()
+    scrollArea.verticalScrollBox:SetPoint("TOPLEFT", scrollArea.container, "TOPLEFT", 0, 0)
+    scrollArea.verticalScrollBox:SetPoint("BOTTOMRIGHT", scrollArea.container, "BOTTOMRIGHT", 0, showHorizontal and LiqUI.Constants.layout.sizes.scrollbar.thickness or 0)
   end
 
   if not showVertical and scrollArea.verticalScrollBox then
@@ -582,6 +594,7 @@ local function updateScrollAreaLayout(scrollArea, contentWidth, contentHeight)
   if not showHorizontal and scrollArea.horizontalScrollBox then
     scrollArea.horizontalScrollBox:ScrollToBegin()
   end
+  scrollArea.isUpdatingLayout = nil
 end
 
 ---WowScrollBox viewport with optional horizontal and/or vertical scrolling.
