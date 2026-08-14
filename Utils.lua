@@ -486,15 +486,8 @@ local function updateScrollAreaLayout(scrollArea, contentWidth, contentHeight)
 
   local overflowTolerance = LiqUI.Constants.layout.sizes.scrollbar.overflowTolerance
 
-  if contentWidth then
-    scrollArea.requestedContentWidth = contentWidth
-  end
-  if contentHeight then
-    scrollArea.requestedContentHeight = contentHeight
-  end
-
-  contentWidth = contentWidth or scrollArea.requestedContentWidth or scrollArea.content:GetWidth()
-  contentHeight = contentHeight or scrollArea.requestedContentHeight or scrollArea.content:GetHeight()
+  contentWidth = contentWidth or scrollArea.content:GetWidth()
+  contentHeight = contentHeight or scrollArea.content:GetHeight()
 
   local containerWidth = scrollArea.container:GetWidth()
   local containerHeight = scrollArea.container:GetHeight()
@@ -682,8 +675,6 @@ function Utils.CreateScrollArea(parent, options)
     horizontalScrollBox = horizontalScrollBox,
     horizontalScrollBar = horizontalScrollBar,
     wheelPanExtent = wheelPanExtent,
-    requestedContentWidth = 1,
-    requestedContentHeight = 1,
   }
 
   ---@return Frame?
