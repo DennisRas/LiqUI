@@ -1029,7 +1029,7 @@ local function createTable(options)
   ---@return number height
   function frame:GetSize()
     local layoutSize = frame.layoutSize
-    return layoutSize.shownWidth, layoutSize.shownHeight
+    return layoutSize.contentWidth, layoutSize.contentHeight
   end
 
   ---@return number width
