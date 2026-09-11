@@ -8,6 +8,11 @@ end
 local Design = LiqUI.Design
 local Events = LiqUI.Events
 local SetBackgroundColor = LiqUI.Utils.SetBackgroundColor
+local SetPixelBackdrop = LiqUI.Utils.SetPixelBackdrop
+local SetPixelPoint = PixelUtil.SetPoint
+local SetPixelSize = PixelUtil.SetSize
+local SetPixelWidth = PixelUtil.SetWidth
+local SetPixelHeight = PixelUtil.SetHeight
 local WINDOW_WIDTH = 880
 local WINDOW_HEIGHT = 700
 local TITLEBAR_HEIGHT = 32
@@ -15,8 +20,8 @@ local MENU_WIDTH = 180
 local PADDING = 16
 local MENU_ROW_HEIGHT = 24
 local MENU_ROW_GAP = 4
+local CONTROL_HEIGHT = 28
 local INPUT_WIDTH = 240
-local INPUT_HEIGHT = 24
 local SWATCH_SIZE = 40
 local SWATCH_GAP = 8
 local TINT_KEYS = {"tint10", "tint20", "tint30", "tint40", "tint50", "tint60", "tint70", "tint80", "tint90"}
@@ -36,6 +41,12 @@ local function colorRGBA(color)
   return color:GetRGBA()
 end
 
+local function setPixelInsetFill(region, fill)
+  fill:ClearAllPoints()
+  SetPixelPoint(fill, "TOPLEFT", region, "TOPLEFT", 1, -1, 1, 1)
+  SetPixelPoint(fill, "BOTTOMRIGHT", region, "BOTTOMRIGHT", -1, 1, 1, 1)
+end
+
 ---@param parent Frame
 ---@param color ColorMixin
 ---@param labelText string
@@ -43,7 +54,7 @@ end
 ---@return Frame, FontString
 local function createSwatch(parent, color, labelText, onClick)
   local swatch = CreateFrame("Button", nil, parent)
-  swatch:SetSize(SWATCH_SIZE, SWATCH_SIZE)
+  SetPixelSize(swatch, SWATCH_SIZE, SWATCH_SIZE)
   local fill = swatch:CreateTexture(nil, "ARTWORK")
   fill:SetAllPoints()
   fill:SetColorTexture(colorRGBA(color))
@@ -52,7 +63,7 @@ local function createSwatch(parent, color, labelText, onClick)
   table.insert(colorBindings, binding)
 
   local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  label:SetPoint("TOP", swatch, "BOTTOM", 0, -2)
+  SetPixelPoint(label, "TOP", swatch, "BOTTOM", 0, -2)
   label:SetText(labelText)
   table.insert(labels, label)
 
@@ -125,8 +136,7 @@ local function setupControl(row, kind)
   fill:SetTexture(WHITE8X8)
   row.Fill = fill
   if kind == "input" then
-    fill:SetPoint("TOPLEFT", 1, -1)
-    fill:SetPoint("BOTTOMRIGHT", -1, 1)
+    setPixelInsetFill(row, fill)
   else
     fill:SetAllPoints()
   end
@@ -149,7 +159,7 @@ end
 local function createSampleButton(parent, kind, text, width)
   ---@class LiqUI_DesignSandboxControl
   local button = CreateFrame("Button", nil, parent)
-  button:SetSize(width, 24)
+  SetPixelSize(button, width, CONTROL_HEIGHT)
   setButtonLabel(button, text)
   setupControl(button, kind)
   return button
@@ -162,16 +172,12 @@ end
 local function createSampleInput(parent, text, enabled)
   ---@class LiqUI_DesignSandboxControl
   local input = CreateFrame("EditBox", nil, parent, "BackdropTemplate")
-  input:SetSize(INPUT_WIDTH, INPUT_HEIGHT)
+  SetPixelSize(input, INPUT_WIDTH, CONTROL_HEIGHT)
   input:SetAutoFocus(false)
   input:SetFontObject("GameFontHighlight")
   input:SetTextInsets(8, 8, 0, 0)
   input:SetText(text or "")
-  input:SetBackdrop({
-    edgeFile = WHITE8X8,
-    edgeSize = 1,
-    insets = {left = 1, right = 1, top = 1, bottom = 1},
-  })
+  SetPixelBackdrop(input, 1, false)
   setupControl(input, "input")
   input:SetScript("OnEditFocusGained", function(self)
     self.focused = true
@@ -211,50 +217,19 @@ end
 local function createMenuRow(parent, text, pageId, yOffset)
   ---@class LiqUI_DesignSandboxControl
   local row = CreateFrame("Button", nil, parent)
-  row:SetPoint("TOPLEFT", PADDING, yOffset)
-  row:SetPoint("TOPRIGHT", -PADDING, yOffset)
-  row:SetHeight(MENU_ROW_HEIGHT)
+  SetPixelPoint(row, "TOPLEFT", parent, "TOPLEFT", PADDING, yOffset)
+  SetPixelPoint(row, "TOPRIGHT", parent, "TOPRIGHT", -PADDING, yOffset)
+  SetPixelHeight(row, MENU_ROW_HEIGHT)
   setButtonLabel(row, text)
   local label = row:GetFontString()
   label:ClearAllPoints()
-  label:SetPoint("LEFT", 8, 0)
+  SetPixelPoint(label, "LEFT", row, "LEFT", 8, 0)
   label:SetJustifyH("LEFT")
   setupControl(row, "menuRow")
   row:SetScript("OnClick", function()
     selectPage(pageId)
   end)
   return row
-end
-
-local function paintSandbox()
-  if not sandbox then
-    return
-  end
-  local scale = Design.scale
-  sandbox:SetBackdropColor(colorRGBA(scale.shade80))
-  sandbox:SetBackdropBorderColor(colorRGBA(scale.shade50))
-  SetBackgroundColor(sandbox.titlebar, scale.shade80)
-  SetBackgroundColor(sandbox.menu, scale.shade80)
-  SetBackgroundColor(sandbox.body, scale.shade70)
-  sandbox.titlebar.title:SetTextColor(colorRGBA(scale.tint90))
-  sandbox.titlebar.CloseButton:GetFontString():SetTextColor(colorRGBA(scale.tint90))
-  paintControl(sandbox.menu.colorsRow)
-  paintControl(sandbox.menu.inputRow)
-  paintControl(sandbox.body.colorsPage.primaryButton)
-  paintControl(sandbox.body.colorsPage.secondaryButton)
-  paintControl(sandbox.body.inputPage.nameInput)
-  paintControl(sandbox.body.inputPage.emptyInput)
-  paintControl(sandbox.body.inputPage.disabledInput)
-  sandbox.body.colorsPage.primaryLabel:SetTextColor(colorRGBA(scale.tint90))
-  sandbox.body.colorsPage.primaryLabel:SetText("Primary  #" .. scale.primary:GenerateHexColorNoAlpha())
-  sandbox.body.inputPage.heading:SetTextColor(colorRGBA(scale.tint90))
-  for index = 1, #colorBindings do
-    local binding = colorBindings[index]
-    binding.texture:SetColorTexture(colorRGBA(binding.color))
-  end
-  for index = 1, #labels do
-    labels[index]:SetTextColor(colorRGBA(scale.tint90))
-  end
 end
 
 local function openPrimaryPicker()
@@ -285,10 +260,10 @@ local function applySavedPoint()
   local point = Design:GetDB().point
   sandbox:ClearAllPoints()
   if point then
-    sandbox:SetPoint(point[1], UIParent, point[2], point[3], point[4])
+    SetPixelPoint(sandbox, point[1], UIParent, point[2], point[3], point[4])
     return
   end
-  sandbox:SetPoint("CENTER")
+  SetPixelPoint(sandbox, "CENTER", UIParent, "CENTER", 0, 0)
 end
 
 ---@param parent Frame
@@ -299,7 +274,7 @@ end
 ---@return number
 local function layoutSwatchRow(parent, keys, source, yOffset, heading)
   local headingLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  headingLabel:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING, yOffset)
+  SetPixelPoint(headingLabel, "TOPLEFT", parent, "TOPLEFT", PADDING, yOffset)
   headingLabel:SetText(heading)
   table.insert(labels, headingLabel)
 
@@ -307,34 +282,75 @@ local function layoutSwatchRow(parent, keys, source, yOffset, heading)
   for index = 1, #keys do
     local key = keys[index]
     local swatch = createSwatch(parent, source[key], key)
-    swatch:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING + (index - 1) * (SWATCH_SIZE + SWATCH_GAP), rowY)
+    SetPixelPoint(swatch, "TOPLEFT", parent, "TOPLEFT", PADDING + (index - 1) * (SWATCH_SIZE + SWATCH_GAP), rowY)
   end
   return rowY - SWATCH_SIZE - 22
+end
+
+local function applyPixelBackdrops()
+  if not sandbox then
+    return
+  end
+  SetPixelSize(sandbox, WINDOW_WIDTH, WINDOW_HEIGHT)
+  SetPixelBackdrop(sandbox, 1, true)
+  local inputPage = sandbox.body.inputPage
+  SetPixelBackdrop(inputPage.nameInput, 1, false)
+  SetPixelBackdrop(inputPage.emptyInput, 1, false)
+  SetPixelBackdrop(inputPage.disabledInput, 1, false)
+  setPixelInsetFill(inputPage.nameInput, inputPage.nameInput.Fill)
+  setPixelInsetFill(inputPage.emptyInput, inputPage.emptyInput.Fill)
+  setPixelInsetFill(inputPage.disabledInput, inputPage.disabledInput.Fill)
+end
+
+local function paintSandbox()
+  if not sandbox then
+    return
+  end
+  applyPixelBackdrops()
+  local scale = Design.scale
+  sandbox:SetBackdropColor(colorRGBA(scale.shade80))
+  sandbox:SetBackdropBorderColor(colorRGBA(scale.shade50))
+  SetBackgroundColor(sandbox.titlebar, scale.shade90)
+  SetBackgroundColor(sandbox.menu, scale.shade80)
+  SetBackgroundColor(sandbox.body, scale.shade70)
+  sandbox.titlebar.title:SetTextColor(colorRGBA(scale.tint90))
+  sandbox.titlebar.CloseButton:GetFontString():SetTextColor(colorRGBA(scale.tint90))
+  paintControl(sandbox.menu.colorsRow)
+  paintControl(sandbox.menu.inputRow)
+  paintControl(sandbox.body.colorsPage.primaryButton)
+  paintControl(sandbox.body.colorsPage.secondaryButton)
+  paintControl(sandbox.body.inputPage.nameInput)
+  paintControl(sandbox.body.inputPage.emptyInput)
+  paintControl(sandbox.body.inputPage.disabledInput)
+  sandbox.body.colorsPage.primaryLabel:SetTextColor(colorRGBA(scale.tint90))
+  sandbox.body.colorsPage.primaryLabel:SetText("Primary  #" .. scale.primary:GenerateHexColorNoAlpha())
+  sandbox.body.inputPage.heading:SetTextColor(colorRGBA(scale.tint90))
+  for index = 1, #colorBindings do
+    local binding = colorBindings[index]
+    binding.texture:SetColorTexture(colorRGBA(binding.color))
+  end
+  for index = 1, #labels do
+    labels[index]:SetTextColor(colorRGBA(scale.tint90))
+  end
 end
 
 local function buildSandbox()
   ---@class LiqUI_DesignSandbox
   local window = CreateFrame("Frame", "LiqUIDesignSandbox", UIParent, "BackdropTemplate")
   sandbox = window
-  window:SetSize(WINDOW_WIDTH, WINDOW_HEIGHT)
+  SetPixelSize(window, WINDOW_WIDTH, WINDOW_HEIGHT)
   window:SetFrameStrata("HIGH")
   window:SetClampedToScreen(true)
   window:SetMovable(true)
   window:EnableMouse(true)
-  window:SetBackdrop({
-    bgFile = WHITE8X8,
-    edgeFile = WHITE8X8,
-    edgeSize = 1,
-    insets = {left = 1, right = 1, top = 1, bottom = 1},
-  })
   applySavedPoint()
 
   ---@class LiqUI_DesignSandboxTitlebar
   local titlebar = CreateFrame("Frame", nil, window)
   window.titlebar = titlebar
-  titlebar:SetPoint("TOPLEFT", 1, -1)
-  titlebar:SetPoint("TOPRIGHT", -1, -1)
-  titlebar:SetHeight(TITLEBAR_HEIGHT)
+  SetPixelPoint(titlebar, "TOPLEFT", window, "TOPLEFT", 1, -1, 1, 1)
+  SetPixelPoint(titlebar, "TOPRIGHT", window, "TOPRIGHT", -1, -1, 1, 1)
+  SetPixelHeight(titlebar, TITLEBAR_HEIGHT)
   titlebar:EnableMouse(true)
   titlebar:RegisterForDrag("LeftButton")
   titlebar:SetScript("OnDragStart", function()
@@ -347,13 +363,13 @@ local function buildSandbox()
 
   local title = titlebar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   titlebar.title = title
-  title:SetPoint("LEFT", 12, 0)
+  SetPixelPoint(title, "LEFT", titlebar, "LEFT", 12, 0)
   title:SetText("LiqUI Design")
 
   local closeButton = CreateFrame("Button", nil, titlebar)
   titlebar.CloseButton = closeButton
-  closeButton:SetSize(TITLEBAR_HEIGHT, TITLEBAR_HEIGHT)
-  closeButton:SetPoint("RIGHT", 0, 0)
+  SetPixelSize(closeButton, TITLEBAR_HEIGHT, TITLEBAR_HEIGHT)
+  SetPixelPoint(closeButton, "RIGHT", titlebar, "RIGHT", 0, 0)
   setButtonLabel(closeButton, "X")
   closeButton:SetScript("OnClick", function()
     window:Hide()
@@ -362,15 +378,15 @@ local function buildSandbox()
   ---@class LiqUI_DesignSandboxMenu
   local menu = CreateFrame("Frame", nil, window)
   window.menu = menu
-  menu:SetPoint("TOPLEFT", titlebar, "BOTTOMLEFT", 0, 0)
-  menu:SetPoint("BOTTOMLEFT", 1, 1)
-  menu:SetWidth(MENU_WIDTH)
+  SetPixelPoint(menu, "TOPLEFT", titlebar, "BOTTOMLEFT", 0, 0)
+  SetPixelPoint(menu, "BOTTOMLEFT", window, "BOTTOMLEFT", 1, 1, 1, 1)
+  SetPixelWidth(menu, MENU_WIDTH)
 
   ---@class LiqUI_DesignSandboxBody
   local body = CreateFrame("Frame", nil, window)
   window.body = body
-  body:SetPoint("TOPLEFT", titlebar, "BOTTOMLEFT", MENU_WIDTH, 0)
-  body:SetPoint("BOTTOMRIGHT", -1, 1)
+  SetPixelPoint(body, "TOPLEFT", titlebar, "BOTTOMLEFT", MENU_WIDTH, 0)
+  SetPixelPoint(body, "BOTTOMRIGHT", window, "BOTTOMRIGHT", -1, 1, 1, 1)
 
   ---@class LiqUI_DesignSandboxColorsPage
   local colorsPage = CreateFrame("Frame", nil, body)
@@ -379,20 +395,20 @@ local function buildSandbox()
 
   local primaryLabel = colorsPage:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   colorsPage.primaryLabel = primaryLabel
-  primaryLabel:SetPoint("TOPLEFT", PADDING, -PADDING)
+  SetPixelPoint(primaryLabel, "TOPLEFT", colorsPage, "TOPLEFT", PADDING, -PADDING)
 
   local primarySwatch = createSwatch(colorsPage, Design.scale.primary, "Click to change", openPrimaryPicker)
   colorsPage.primarySwatch = primarySwatch
-  primarySwatch:SetPoint("TOPLEFT", primaryLabel, "BOTTOMLEFT", 0, -8)
-  primarySwatch:SetSize(72, 36)
+  SetPixelPoint(primarySwatch, "TOPLEFT", primaryLabel, "BOTTOMLEFT", 0, -8)
+  SetPixelSize(primarySwatch, 72, 36)
 
   local primaryButton = createSampleButton(colorsPage, "buttonPrimary", "Save", 88)
   colorsPage.primaryButton = primaryButton
-  primaryButton:SetPoint("TOPLEFT", primarySwatch, "BOTTOMLEFT", 0, -20)
+  SetPixelPoint(primaryButton, "TOPLEFT", primarySwatch, "BOTTOMLEFT", 0, -20)
 
   local secondaryButton = createSampleButton(colorsPage, "buttonSecondary", "Cancel", 88)
   colorsPage.secondaryButton = secondaryButton
-  secondaryButton:SetPoint("LEFT", primaryButton, "RIGHT", 8, 0)
+  SetPixelPoint(secondaryButton, "LEFT", primaryButton, "RIGHT", 8, 0)
 
   local yOffset = -PADDING - 150
   yOffset = layoutSwatchRow(colorsPage, TINT_KEYS, Design.scale, yOffset, "Tints  (toward white)")
@@ -406,35 +422,35 @@ local function buildSandbox()
 
   local inputHeading = inputPage:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   inputPage.heading = inputHeading
-  inputHeading:SetPoint("TOPLEFT", PADDING, -PADDING)
+  SetPixelPoint(inputHeading, "TOPLEFT", inputPage, "TOPLEFT", PADDING, -PADDING)
   inputHeading:SetText("Input")
 
   local nameLabel = inputPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  nameLabel:SetPoint("TOPLEFT", inputHeading, "BOTTOMLEFT", 0, -16)
+  SetPixelPoint(nameLabel, "TOPLEFT", inputHeading, "BOTTOMLEFT", 0, -16)
   nameLabel:SetText("With text")
   table.insert(labels, nameLabel)
 
   local nameInput = createSampleInput(inputPage, "Player name", true)
   inputPage.nameInput = nameInput
-  nameInput:SetPoint("TOPLEFT", nameLabel, "BOTTOMLEFT", 0, -6)
+  SetPixelPoint(nameInput, "TOPLEFT", nameLabel, "BOTTOMLEFT", 0, -6)
 
   local emptyLabel = inputPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  emptyLabel:SetPoint("TOPLEFT", nameInput, "BOTTOMLEFT", 0, -16)
+  SetPixelPoint(emptyLabel, "TOPLEFT", nameInput, "BOTTOMLEFT", 0, -16)
   emptyLabel:SetText("Empty")
   table.insert(labels, emptyLabel)
 
   local emptyInput = createSampleInput(inputPage, "", true)
   inputPage.emptyInput = emptyInput
-  emptyInput:SetPoint("TOPLEFT", emptyLabel, "BOTTOMLEFT", 0, -6)
+  SetPixelPoint(emptyInput, "TOPLEFT", emptyLabel, "BOTTOMLEFT", 0, -6)
 
   local disabledLabel = inputPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  disabledLabel:SetPoint("TOPLEFT", emptyInput, "BOTTOMLEFT", 0, -16)
+  SetPixelPoint(disabledLabel, "TOPLEFT", emptyInput, "BOTTOMLEFT", 0, -16)
   disabledLabel:SetText("Disabled")
   table.insert(labels, disabledLabel)
 
   local disabledInput = createSampleInput(inputPage, "Cannot edit", false)
   inputPage.disabledInput = disabledInput
-  disabledInput:SetPoint("TOPLEFT", disabledLabel, "BOTTOMLEFT", 0, -6)
+  SetPixelPoint(disabledInput, "TOPLEFT", disabledLabel, "BOTTOMLEFT", 0, -6)
 
   local colorsRow = createMenuRow(menu, "Colors", "colors", -PADDING)
   menu.colorsRow = colorsRow
@@ -442,7 +458,7 @@ local function buildSandbox()
   menu.inputRow = inputRow
   selectPage("colors")
 
-  paintSandbox()
+  window:SetScript("OnShow", paintSandbox)
   Design:RegisterOnChanged(paintSandbox)
   window:Show()
 end
@@ -469,3 +485,5 @@ local function onAddonLoaded(_frame, _event, loadedName)
 end
 
 Events:RegisterEvent("ADDON_LOADED", onAddonLoaded, true)
+Events:RegisterEvent("UI_SCALE_CHANGED", paintSandbox, true)
+Events:RegisterEvent("DISPLAY_SIZE_CHANGED", paintSandbox, true)

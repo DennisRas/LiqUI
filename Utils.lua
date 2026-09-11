@@ -246,6 +246,24 @@ function Utils.SetBackgroundColor(parent, r, g, b, a)
   parent.Background:SetVertexColor(r, g, b, a)
 end
 
+---@param frame BackdropTemplate
+---@param edgePixels number?
+---@param includeBackground boolean?
+function Utils.SetPixelBackdrop(frame, edgePixels, includeBackground)
+  local size = PixelUtil.GetNearestPixelSize(edgePixels or 1, frame:GetEffectiveScale(), 1)
+  local texture = LiqUI.Constants.shared.backdropTexture
+  ---@type backdropInfo
+  local info = {
+    edgeFile = texture,
+    edgeSize = size,
+    insets = {left = size, right = size, top = size, bottom = size},
+  }
+  if includeBackground then
+    info.bgFile = texture
+  end
+  frame:SetBackdrop(info)
+end
+
 ---@param parent Frame
 ---@param r number|ColorTable?
 ---@param g number?

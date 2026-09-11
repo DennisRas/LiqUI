@@ -5,6 +5,9 @@ if not LiqUI then
 end
 
 local TableMergeOptions = LiqUI.Utils.TableMergeOptions
+local SetPixelBackdrop = LiqUI.Utils.SetPixelBackdrop
+local SetPixelPoint = PixelUtil.SetPoint
+local SetPixelSize = PixelUtil.SetSize
 local buttonChrome = LiqUI.Constants.button
 local textColors = LiqUI.Constants.text
 
@@ -68,8 +71,8 @@ local function layoutButton(button)
   local options = button.options
   local padding = options.padding
   button.Text:ClearAllPoints()
-  button.Text:SetPoint("TOPLEFT", button, "TOPLEFT", padding, 0)
-  button.Text:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -padding, 0)
+  SetPixelPoint(button.Text, "TOPLEFT", button, "TOPLEFT", padding, 0)
+  SetPixelPoint(button.Text, "BOTTOMRIGHT", button, "BOTTOMRIGHT", -padding, 0)
   button.Text:SetJustifyH("CENTER")
   button.Text:SetJustifyV("MIDDLE")
   button.Text:SetWordWrap(false)
@@ -82,7 +85,7 @@ local function layoutButton(button)
   if options.maxWidth then
     width = math.min(width, options.maxWidth)
   end
-  button:SetSize(width, options.height)
+  SetPixelSize(button, width, options.height)
 end
 
 ---@param button LiqUI_ButtonInstance
@@ -123,6 +126,7 @@ local function wireButton(button)
   end)
   button:SetScript("OnShow", function()
     hidePanelArt(button)
+    SetPixelBackdrop(button, 1, true)
     paintButton(button)
   end)
 end
@@ -166,8 +170,7 @@ local function createButton(options)
   button.options = mergedOptions
 
   hidePanelArt(button)
-  button.backdropInfo = LiqUI.Constants.control.backdrop
-  button:ApplyBackdrop()
+  SetPixelBackdrop(button, 1, true)
   button:SetPushedTextOffset(0, 0)
   button:SetNormalFontObject("GameFontHighlight")
   button:SetHighlightFontObject("GameFontHighlight")
