@@ -9,6 +9,8 @@ local Design = LiqUI.Design
 local Events = LiqUI.Events
 local SetBackgroundColor = LiqUI.Utils.SetBackgroundColor
 local SetPixelBackdrop = LiqUI.Utils.SetPixelBackdrop
+local CreateScrollBox = LiqUI.Utils.CreateScrollBox
+local BindScrollBoxMouseWheel = LiqUI.Utils.BindScrollBoxMouseWheel
 local SetPixelPoint = PixelUtil.SetPoint
 local SetPixelSize = PixelUtil.SetSize
 local SetPixelWidth = PixelUtil.SetWidth
@@ -21,19 +23,31 @@ local PADDING = 16
 local MENU_ROW_HEIGHT = 24
 local MENU_ROW_GAP = 4
 local CONTROL_HEIGHT = 28
+local CONTROL_GAP = 8
+local SAMPLE_BUTTON_WIDTH = 100
 local INPUT_WIDTH = 240
+local INPUT_TEXT_INSET = 8
+local TEXT_WIDTH = 600
+local TEXT_SCROLL_BAR_WIDTH = 12
 local SWATCH_SIZE = 40
 local SWATCH_GAP = 8
-local TINT_KEYS = {"tint10", "tint20", "tint30", "tint40", "tint50", "tint60", "tint70", "tint80", "tint90"}
+local TINT_KEYS = {"tint5", "tint10", "tint15", "tint20", "tint25", "tint30", "tint35", "tint40", "tint45", "tint50"}
 local SHADE_KEYS = {"shade10", "shade20", "shade30", "shade40", "shade50", "shade60", "shade70", "shade80", "shade90"}
 local WHITE8X8 = "Interface/BUTTONS/WHITE8X8"
+local LOREM_PARAGRAPH =
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+local LOREM_PARAGRAPH_TWO =
+  "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem."
+local LOREM_BLOCK = LOREM_PARAGRAPH .. " " .. LOREM_PARAGRAPH_TWO .. " " .. LOREM_PARAGRAPH .. " " .. LOREM_PARAGRAPH_TWO
 
 ---@type LiqUI_DesignSandbox?
 local sandbox
 ---@type LiqUI_DesignColorBinding[]
 local colorBindings = {}
----@type FontString[]
-local labels = {}
+---@type LiqUI_DesignSandboxControl[]
+local controls = {}
+---@type LiqUI_DesignTypeSample[]
+local typeSamples = {}
 
 ---@param color ColorMixin
 ---@return number, number, number, number
@@ -45,6 +59,19 @@ local function setPixelInsetFill(region, fill)
   fill:ClearAllPoints()
   SetPixelPoint(fill, "TOPLEFT", region, "TOPLEFT", 1, -1, 1, 1)
   SetPixelPoint(fill, "BOTTOMRIGHT", region, "BOTTOMRIGHT", -1, 1, 1, 1)
+end
+
+---@param parent Frame
+---@param typeId LiqUI_DesignTypeId
+---@return FontString
+local function createTypeString(parent, typeId)
+  local style = Design.typography[typeId]
+  local fontString = parent:CreateFontString(nil, "OVERLAY", style.fontObject)
+  ---@type LiqUI_DesignTypeSample
+  local sample = {fontString = fontString, typeId = typeId}
+  table.insert(typeSamples, sample)
+  Design:ApplyType(fontString, typeId)
+  return fontString
 end
 
 ---@param parent Frame
@@ -62,10 +89,9 @@ local function createSwatch(parent, color, labelText, onClick)
   local binding = {texture = fill, color = color}
   table.insert(colorBindings, binding)
 
-  local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  local label = createTypeString(parent, "label")
   SetPixelPoint(label, "TOP", swatch, "BOTTOM", 0, -2)
   label:SetText(labelText)
-  table.insert(labels, label)
 
   if onClick then
     swatch:SetScript("OnClick", onClick)
@@ -92,8 +118,8 @@ local function controlState(row)
   ---@type LiqUI_DesignControlState
   local state = {
     enabled = row:IsEnabled(),
-    over = row:IsOver() and true or false,
-    down = row:IsDown() and true or false,
+    over = row.previewOver or (row:IsOver() and true) or false,
+    down = row.previewDown or (row:IsDown() and true) or false,
     selected = row.selected,
     focused = row.focused,
   }
@@ -105,9 +131,9 @@ local function paintControl(row)
   local scale = Design.scale
   local fill = Design:ResolveFill(row.controlKind, controlState(row))
   row.Fill:SetVertexColor(colorRGBA(fill))
-  local textColor = scale.tint90
+  local textColor = scale.white
   if not row:IsEnabled() then
-    textColor = scale.tint60
+    textColor = scale.tint50
   end
   local fontString = row.GetFontString and row:GetFontString()
   if fontString then
@@ -120,6 +146,11 @@ local function paintControl(row)
       border = scale.primary
     end
     row:SetBackdropBorderColor(colorRGBA(border))
+    local instructions = row.Instructions
+    if instructions then
+      instructions:SetTextColor(colorRGBA(scale.tint50))
+      instructions:SetShown(row:GetText() == "")
+    end
   end
 end
 
@@ -149,6 +180,7 @@ local function setupControl(row, kind)
     row:SetScript("OnDisable", row.OnDisable)
   end
   row.OnButtonStateChanged = paintControl
+  table.insert(controls, row)
 end
 
 ---@param parent Frame
@@ -168,17 +200,27 @@ end
 ---@param parent Frame
 ---@param text string
 ---@param enabled boolean?
+---@param placeholder string?
 ---@return LiqUI_DesignSandboxControl
-local function createSampleInput(parent, text, enabled)
+local function createSampleInput(parent, text, enabled, placeholder)
   ---@class LiqUI_DesignSandboxControl
   local input = CreateFrame("EditBox", nil, parent, "BackdropTemplate")
   SetPixelSize(input, INPUT_WIDTH, CONTROL_HEIGHT)
   input:SetAutoFocus(false)
   input:SetFontObject("GameFontHighlight")
-  input:SetTextInsets(8, 8, 0, 0)
+  input:SetTextInsets(INPUT_TEXT_INSET, INPUT_TEXT_INSET, 0, 0)
   input:SetText(text or "")
   SetPixelBackdrop(input, 1, false)
   setupControl(input, "input")
+  if placeholder then
+    local instructions = input:CreateFontString(nil, "OVERLAY")
+    instructions:SetFontObject("GameFontHighlight")
+    instructions:SetJustifyH("LEFT")
+    SetPixelPoint(instructions, "TOPLEFT", input, "TOPLEFT", INPUT_TEXT_INSET, 0)
+    SetPixelPoint(instructions, "BOTTOMRIGHT", input, "BOTTOMRIGHT", -INPUT_TEXT_INSET, 0)
+    instructions:SetText(placeholder)
+    input.Instructions = instructions
+  end
   input:SetScript("OnEditFocusGained", function(self)
     self.focused = true
     paintControl(self)
@@ -189,6 +231,9 @@ local function createSampleInput(parent, text, enabled)
   end)
   input:SetScript("OnEscapePressed", function(self)
     self:ClearFocus()
+  end)
+  input:SetScript("OnTextChanged", function(self)
+    paintControl(self)
   end)
   if enabled == false then
     input:Disable()
@@ -202,11 +247,17 @@ local function selectPage(pageId)
     return
   end
   sandbox.menu.colorsRow.selected = pageId == "colors"
+  sandbox.menu.buttonsRow.selected = pageId == "buttons"
   sandbox.menu.inputRow.selected = pageId == "input"
+  sandbox.menu.textRow.selected = pageId == "text"
   sandbox.body.colorsPage:SetShown(pageId == "colors")
+  sandbox.body.buttonsPage:SetShown(pageId == "buttons")
   sandbox.body.inputPage:SetShown(pageId == "input")
+  sandbox.body.textPage:SetShown(pageId == "text")
   paintControl(sandbox.menu.colorsRow)
+  paintControl(sandbox.menu.buttonsRow)
   paintControl(sandbox.menu.inputRow)
+  paintControl(sandbox.menu.textRow)
 end
 
 ---@param parent Frame
@@ -273,10 +324,9 @@ end
 ---@param heading string
 ---@return number
 local function layoutSwatchRow(parent, keys, source, yOffset, heading)
-  local headingLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  local headingLabel = createTypeString(parent, "h3")
   SetPixelPoint(headingLabel, "TOPLEFT", parent, "TOPLEFT", PADDING, yOffset)
   headingLabel:SetText(heading)
-  table.insert(labels, headingLabel)
 
   local rowY = yOffset - 22
   for index = 1, #keys do
@@ -285,6 +335,51 @@ local function layoutSwatchRow(parent, keys, source, yOffset, heading)
     SetPixelPoint(swatch, "TOPLEFT", parent, "TOPLEFT", PADDING + (index - 1) * (SWATCH_SIZE + SWATCH_GAP), rowY)
   end
   return rowY - SWATCH_SIZE - 22
+end
+
+---@param parent Frame
+---@param kind LiqUI_DesignControlKindId
+---@param heading string
+---@param yOffset number
+---@return number
+local function layoutButtonStateRow(parent, kind, heading, yOffset)
+  local headingLabel = createTypeString(parent, "h3")
+  SetPixelPoint(headingLabel, "TOPLEFT", parent, "TOPLEFT", PADDING, yOffset)
+  headingLabel:SetText(heading)
+
+  local rest = createSampleButton(parent, kind, "Rest", SAMPLE_BUTTON_WIDTH)
+  SetPixelPoint(rest, "TOPLEFT", headingLabel, "BOTTOMLEFT", 0, -6)
+
+  local hover = createSampleButton(parent, kind, "Hover", SAMPLE_BUTTON_WIDTH)
+  hover.previewOver = true
+  SetPixelPoint(hover, "LEFT", rest, "RIGHT", CONTROL_GAP, 0)
+
+  local pressed = createSampleButton(parent, kind, "Pressed", SAMPLE_BUTTON_WIDTH)
+  pressed.previewDown = true
+  SetPixelPoint(pressed, "LEFT", hover, "RIGHT", CONTROL_GAP, 0)
+
+  local disabled = createSampleButton(parent, kind, "Disabled", SAMPLE_BUTTON_WIDTH)
+  disabled:Disable()
+  SetPixelPoint(disabled, "LEFT", pressed, "RIGHT", CONTROL_GAP, 0)
+
+  return yOffset - 22 - CONTROL_HEIGHT - 24
+end
+
+---@param parent Frame
+---@param typeId LiqUI_DesignTypeId
+---@param text string
+---@param yOffset number
+---@return number
+local function addTextSample(parent, typeId, text, yOffset)
+  local style = Design.typography[typeId]
+  local fontString = createTypeString(parent, typeId)
+  SetPixelPoint(fontString, "TOPLEFT", parent, "TOPLEFT", PADDING, yOffset)
+  fontString:SetJustifyH("LEFT")
+  if style.wrap then
+    fontString:SetWidth(TEXT_WIDTH)
+  end
+  fontString:SetText(text)
+  return yOffset - fontString:GetStringHeight() - 8
 end
 
 local function applyPixelBackdrops()
@@ -313,24 +408,22 @@ local function paintSandbox()
   SetBackgroundColor(sandbox.titlebar, scale.shade90)
   SetBackgroundColor(sandbox.menu, scale.shade80)
   SetBackgroundColor(sandbox.body, scale.shade70)
-  sandbox.titlebar.title:SetTextColor(colorRGBA(scale.tint90))
-  sandbox.titlebar.CloseButton:GetFontString():SetTextColor(colorRGBA(scale.tint90))
-  paintControl(sandbox.menu.colorsRow)
-  paintControl(sandbox.menu.inputRow)
-  paintControl(sandbox.body.colorsPage.primaryButton)
-  paintControl(sandbox.body.colorsPage.secondaryButton)
-  paintControl(sandbox.body.inputPage.nameInput)
-  paintControl(sandbox.body.inputPage.emptyInput)
-  paintControl(sandbox.body.inputPage.disabledInput)
-  sandbox.body.colorsPage.primaryLabel:SetTextColor(colorRGBA(scale.tint90))
+  sandbox.titlebar.CloseButton:GetFontString():SetTextColor(colorRGBA(scale.white))
+  for index = 1, #controls do
+    paintControl(controls[index])
+  end
   sandbox.body.colorsPage.primaryLabel:SetText("Primary  #" .. scale.primary:GenerateHexColorNoAlpha())
-  sandbox.body.inputPage.heading:SetTextColor(colorRGBA(scale.tint90))
   for index = 1, #colorBindings do
     local binding = colorBindings[index]
     binding.texture:SetColorTexture(colorRGBA(binding.color))
   end
-  for index = 1, #labels do
-    labels[index]:SetTextColor(colorRGBA(scale.tint90))
+  for index = 1, #typeSamples do
+    local sample = typeSamples[index]
+    Design:ApplyType(sample.fontString, sample.typeId)
+  end
+  local textScrollBox = sandbox.body.textPage.scrollBox
+  if textScrollBox then
+    textScrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
   end
 end
 
@@ -361,7 +454,7 @@ local function buildSandbox()
     savePoint()
   end)
 
-  local title = titlebar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  local title = createTypeString(titlebar, "h2")
   titlebar.title = title
   SetPixelPoint(title, "LEFT", titlebar, "LEFT", 12, 0)
   title:SetText("LiqUI Design")
@@ -393,7 +486,7 @@ local function buildSandbox()
   body.colorsPage = colorsPage
   colorsPage:SetAllPoints()
 
-  local primaryLabel = colorsPage:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  local primaryLabel = createTypeString(colorsPage, "h1")
   colorsPage.primaryLabel = primaryLabel
   SetPixelPoint(primaryLabel, "TOPLEFT", colorsPage, "TOPLEFT", PADDING, -PADDING)
 
@@ -402,17 +495,33 @@ local function buildSandbox()
   SetPixelPoint(primarySwatch, "TOPLEFT", primaryLabel, "BOTTOMLEFT", 0, -8)
   SetPixelSize(primarySwatch, 72, 36)
 
-  local primaryButton = createSampleButton(colorsPage, "buttonPrimary", "Save", 88)
-  colorsPage.primaryButton = primaryButton
-  SetPixelPoint(primaryButton, "TOPLEFT", primarySwatch, "BOTTOMLEFT", 0, -20)
-
-  local secondaryButton = createSampleButton(colorsPage, "buttonSecondary", "Cancel", 88)
-  colorsPage.secondaryButton = secondaryButton
-  SetPixelPoint(secondaryButton, "LEFT", primaryButton, "RIGHT", 8, 0)
-
-  local yOffset = -PADDING - 150
+  local yOffset = -PADDING - 90
   yOffset = layoutSwatchRow(colorsPage, TINT_KEYS, Design.scale, yOffset, "Tints  (toward white)")
   layoutSwatchRow(colorsPage, SHADE_KEYS, Design.scale, yOffset, "Shades  (toward black)")
+
+  ---@class LiqUI_DesignSandboxButtonsPage
+  local buttonsPage = CreateFrame("Frame", nil, body)
+  body.buttonsPage = buttonsPage
+  buttonsPage:SetAllPoints()
+  buttonsPage:Hide()
+
+  local buttonsHeading = createTypeString(buttonsPage, "h1")
+  buttonsPage.heading = buttonsHeading
+  SetPixelPoint(buttonsHeading, "TOPLEFT", buttonsPage, "TOPLEFT", PADDING, -PADDING)
+  buttonsHeading:SetText("Buttons")
+
+  local buttonY = -PADDING - buttonsHeading:GetStringHeight() - 16
+  buttonY = layoutButtonStateRow(buttonsPage, "buttonPrimary", "Primary", buttonY)
+  buttonY = layoutButtonStateRow(buttonsPage, "buttonSecondary", "Secondary", buttonY)
+
+  local pairLabel = createTypeString(buttonsPage, "h3")
+  SetPixelPoint(pairLabel, "TOPLEFT", buttonsPage, "TOPLEFT", PADDING, buttonY)
+  pairLabel:SetText("Save and Cancel")
+
+  local saveButton = createSampleButton(buttonsPage, "buttonPrimary", "Save", SAMPLE_BUTTON_WIDTH)
+  SetPixelPoint(saveButton, "TOPLEFT", pairLabel, "BOTTOMLEFT", 0, -6)
+  local cancelButton = createSampleButton(buttonsPage, "buttonSecondary", "Cancel", SAMPLE_BUTTON_WIDTH)
+  SetPixelPoint(cancelButton, "LEFT", saveButton, "RIGHT", CONTROL_GAP, 0)
 
   ---@class LiqUI_DesignSandboxInputPage
   local inputPage = CreateFrame("Frame", nil, body)
@@ -420,42 +529,81 @@ local function buildSandbox()
   inputPage:SetAllPoints()
   inputPage:Hide()
 
-  local inputHeading = inputPage:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  local inputHeading = createTypeString(inputPage, "h1")
   inputPage.heading = inputHeading
   SetPixelPoint(inputHeading, "TOPLEFT", inputPage, "TOPLEFT", PADDING, -PADDING)
   inputHeading:SetText("Input")
 
-  local nameLabel = inputPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  local nameLabel = createTypeString(inputPage, "label")
   SetPixelPoint(nameLabel, "TOPLEFT", inputHeading, "BOTTOMLEFT", 0, -16)
   nameLabel:SetText("With text")
-  table.insert(labels, nameLabel)
 
   local nameInput = createSampleInput(inputPage, "Player name", true)
   inputPage.nameInput = nameInput
   SetPixelPoint(nameInput, "TOPLEFT", nameLabel, "BOTTOMLEFT", 0, -6)
 
-  local emptyLabel = inputPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  local emptyLabel = createTypeString(inputPage, "label")
   SetPixelPoint(emptyLabel, "TOPLEFT", nameInput, "BOTTOMLEFT", 0, -16)
-  emptyLabel:SetText("Empty")
-  table.insert(labels, emptyLabel)
+  emptyLabel:SetText("Placeholder")
 
-  local emptyInput = createSampleInput(inputPage, "", true)
+  local emptyInput = createSampleInput(inputPage, "", true, "Character name")
   inputPage.emptyInput = emptyInput
   SetPixelPoint(emptyInput, "TOPLEFT", emptyLabel, "BOTTOMLEFT", 0, -6)
 
-  local disabledLabel = inputPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  local disabledLabel = createTypeString(inputPage, "label")
   SetPixelPoint(disabledLabel, "TOPLEFT", emptyInput, "BOTTOMLEFT", 0, -16)
   disabledLabel:SetText("Disabled")
-  table.insert(labels, disabledLabel)
 
   local disabledInput = createSampleInput(inputPage, "Cannot edit", false)
   inputPage.disabledInput = disabledInput
   SetPixelPoint(disabledInput, "TOPLEFT", disabledLabel, "BOTTOMLEFT", 0, -6)
 
+  ---@class LiqUI_DesignSandboxTextPage
+  local textPage = CreateFrame("Frame", nil, body)
+  body.textPage = textPage
+  textPage:SetAllPoints()
+  textPage:Hide()
+
+  ---@type LiqUI_ScrollBoxOptions
+  local scrollBoxOptions = {barWidth = TEXT_SCROLL_BAR_WIDTH}
+  local scrollBox = CreateScrollBox(textPage, nil, scrollBoxOptions)
+  textPage.scrollBox = scrollBox
+  SetPixelPoint(scrollBox, "TOPLEFT", textPage, "TOPLEFT", 0, 0)
+  SetPixelPoint(scrollBox, "BOTTOMRIGHT", textPage, "BOTTOMRIGHT", -TEXT_SCROLL_BAR_WIDTH, 0)
+  local scrollChild = scrollBox.scrollChild
+  BindScrollBoxMouseWheel(textPage, scrollBox)
+
+  local textY = -PADDING
+  textY = addTextSample(scrollChild, "h1", "h1 is the page title.", textY)
+  textY = addTextSample(
+    scrollChild,
+    "p",
+    "p is body copy. It wraps inside the content width. The window titlebar uses h2.",
+    textY
+  )
+  textY = addTextSample(scrollChild, "p", LOREM_BLOCK, textY)
+  textY = addTextSample(scrollChild, "h2", "h2 is a section heading.", textY)
+  textY = addTextSample(scrollChild, "p", LOREM_BLOCK, textY)
+  textY = addTextSample(scrollChild, "p", LOREM_PARAGRAPH, textY)
+  textY = addTextSample(scrollChild, "h3", "h3 is a subsection heading.", textY)
+  textY = addTextSample(scrollChild, "p", LOREM_BLOCK, textY)
+  textY = addTextSample(scrollChild, "label", "label is a field caption.", textY)
+  textY = addTextSample(scrollChild, "p", LOREM_PARAGRAPH_TWO, textY)
+  textY = addTextSample(scrollChild, "h2", "Another section heading.", textY)
+  textY = addTextSample(scrollChild, "p", LOREM_BLOCK, textY)
+  textY = addTextSample(scrollChild, "h3", "Another subsection heading.", textY)
+  textY = addTextSample(scrollChild, "p", LOREM_BLOCK, textY)
+  scrollChild:SetHeight(math.max(1, -textY + PADDING))
+  scrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
+
   local colorsRow = createMenuRow(menu, "Colors", "colors", -PADDING)
   menu.colorsRow = colorsRow
-  local inputRow = createMenuRow(menu, "Input", "input", -(PADDING + MENU_ROW_HEIGHT + MENU_ROW_GAP))
+  local buttonsRow = createMenuRow(menu, "Buttons", "buttons", -(PADDING + MENU_ROW_HEIGHT + MENU_ROW_GAP))
+  menu.buttonsRow = buttonsRow
+  local inputRow = createMenuRow(menu, "Input", "input", -(PADDING + (MENU_ROW_HEIGHT + MENU_ROW_GAP) * 2))
   menu.inputRow = inputRow
+  local textRow = createMenuRow(menu, "Text", "text", -(PADDING + (MENU_ROW_HEIGHT + MENU_ROW_GAP) * 3))
+  menu.textRow = textRow
   selectPage("colors")
 
   window:SetScript("OnShow", paintSandbox)

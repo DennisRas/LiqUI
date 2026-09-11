@@ -7,6 +7,13 @@ end
 LiqUI.Design = LiqUI.Design or {
   scale = {},
   listeners = {},
+  typography = {
+    h1 = {fontObject = "GameFontHighlightLarge", color = "white"},
+    h2 = {fontObject = "SystemFont_Med3", color = "white"},
+    h3 = {fontObject = "GameFontHighlight", color = "white"},
+    p = {fontObject = "GameFontHighlight", color = "white", wrap = true},
+    label = {fontObject = "GameFontHighlightSmall", color = "white"},
+  },
   controlKinds = {
     menuRow = {
       rest = "shade80",
@@ -18,29 +25,30 @@ LiqUI.Design = LiqUI.Design or {
     },
     buttonPrimary = {
       rest = "primary",
-      hover = "tint10",
+      hover = "tint5",
       pressed = "shade10",
       disabled = "shade80",
     },
     buttonSecondary = {
-      rest = "shade70",
-      hover = "shade50",
-      pressed = "shade80",
+      rest = "shade50",
+      hover = "shade40",
+      pressed = "shade60",
       disabled = "shade80",
     },
     input = {
       rest = "shade80",
-      hover = "shade50",
+      hover = "shade70",
       pressed = "shade80",
       focused = "shade80",
-      disabled = "shade80",
+      disabled = "shade90",
     },
   },
 }
 
 ---@class LiqUI_Design
 local Design = LiqUI.Design
-local STEPS = {10, 20, 30, 40, 50, 60, 70, 80, 90}
+local TINT_STEPS = {5, 10, 15, 20, 25, 30, 35, 40, 45, 50}
+local SHADE_STEPS = {10, 20, 30, 40, 50, 60, 70, 80, 90}
 local DEFAULT_PRIMARY = CreateColorFromHexString("FF1A4A6B")
 
 ---@return LiqUI_DesignDB
@@ -74,6 +82,26 @@ local function ensureColor(color)
   return CreateColor(0, 0, 0, 1)
 end
 
+---@param scale LiqUI_DesignScale
+---@param r number
+---@param g number
+---@param b number
+---@param steps number[]
+---@param prefix string
+---@param towardR number
+---@param towardG number
+---@param towardB number
+local function rebuildSteps(scale, r, g, b, steps, prefix, towardR, towardG, towardB)
+  for index = 1, #steps do
+    local step = steps[index]
+    local amount = step / 100
+    local key = prefix .. step
+    local color = ensureColor(scale[key])
+    color:SetRGB(mixChannel(r, towardR, amount), mixChannel(g, towardG, amount), mixChannel(b, towardB, amount))
+    scale[key] = color
+  end
+end
+
 ---@param r number
 ---@param g number
 ---@param b number
@@ -81,19 +109,10 @@ local function rebuild(r, g, b)
   local scale = Design.scale
   scale.primary = ensureColor(scale.primary)
   scale.primary:SetRGB(r, g, b)
-
-  for index = 1, #STEPS do
-    local step = STEPS[index]
-    local amount = step / 100
-    local tintKey = "tint" .. step
-    local shadeKey = "shade" .. step
-    local tint = ensureColor(scale[tintKey])
-    local shade = ensureColor(scale[shadeKey])
-    tint:SetRGB(mixChannel(r, 1, amount), mixChannel(g, 1, amount), mixChannel(b, 1, amount))
-    shade:SetRGB(mixChannel(r, 0, amount), mixChannel(g, 0, amount), mixChannel(b, 0, amount))
-    scale[tintKey] = tint
-    scale[shadeKey] = shade
-  end
+  scale.white = ensureColor(scale.white)
+  scale.white:SetRGB(1, 1, 1)
+  rebuildSteps(scale, r, g, b, TINT_STEPS, "tint", 1, 1, 1)
+  rebuildSteps(scale, r, g, b, SHADE_STEPS, "shade", 0, 0, 0)
 end
 
 local function notify()
@@ -151,4 +170,18 @@ function Design:ResolveFill(kind, state)
     key = map.selected
   end
   return self.scale[key]
+end
+
+---@param fontString FontString
+---@param typeId LiqUI_DesignTypeId
+function Design:ApplyType(fontString, typeId)
+  local style = self.typography[typeId]
+  fontString:SetFontObject(style.fontObject)
+  local color = self.scale[style.color]
+  fontString:SetTextColor(color:GetRGBA())
+  if style.wrap then
+    fontString:SetWordWrap(true)
+  else
+    fontString:SetWordWrap(false)
+  end
 end
