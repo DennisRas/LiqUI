@@ -19,5 +19,8 @@ Debug\Types\Button.lua
 Debug\Types\Data.lua
 Debug\Types\EJScan.lua
 Debug\Types\Events.lua
+Debug\Types\Design.lua
+Debug\Design\Tokens.lua
+Debug\Design\Sandbox.lua
 Debug\Tests\Gallery.lua
 #@end-debug@

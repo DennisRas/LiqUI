@@ -29,6 +29,7 @@
 ---@field Events LiqUI_Events
 ---@field Data LiqUI_Data
 ---@field EJScan LiqUI_EJScan
+---@field Design LiqUI_Design
 ---@field elements table<string, fun(options: table): any>
 ---@field created table<string, table<string, any>>
 ---@field registeredAddons table<string, LiqUI_RegisteredAddon>
