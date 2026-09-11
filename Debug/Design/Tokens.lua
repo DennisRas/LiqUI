@@ -6,17 +6,35 @@ end
 
 LiqUI.Design = LiqUI.Design or {
   scale = {},
-  tokens = {},
   listeners = {},
-  tokenScaleKeys = {
-    surface = "shade80",
-    surfaceRaised = "shade70",
-    border = "shade50",
-    accent = "primary",
-    accentHover = "tint10",
-    accentPressed = "shade10",
-    text = "tint90",
-    textMuted = "tint60",
+  controlKinds = {
+    menuRow = {
+      rest = "shade80",
+      hover = "shade50",
+      pressed = "shade10",
+      selected = "primary",
+      selectedHover = "tint10",
+      disabled = "shade80",
+    },
+    buttonPrimary = {
+      rest = "primary",
+      hover = "tint10",
+      pressed = "shade10",
+      disabled = "shade80",
+    },
+    buttonSecondary = {
+      rest = "shade70",
+      hover = "shade50",
+      pressed = "shade80",
+      disabled = "shade80",
+    },
+    input = {
+      rest = "shade80",
+      hover = "shade50",
+      pressed = "shade80",
+      focused = "shade80",
+      disabled = "shade80",
+    },
   },
 }
 
@@ -76,13 +94,6 @@ local function rebuild(r, g, b)
     scale[tintKey] = tint
     scale[shadeKey] = shade
   end
-
-  LiqUI.Utils.TableForEach(Design.tokenScaleKeys, function(scaleKey, tokenKey)
-    local source = scale[scaleKey]
-    local token = ensureColor(Design.tokens[tokenKey])
-    token:SetRGBA(source:GetRGBA())
-    Design.tokens[tokenKey] = token
-  end)
 end
 
 local function notify()
@@ -118,4 +129,26 @@ end
 ---@return LiqUI_DesignDB
 function Design:GetDB()
   return getStore()
+end
+
+---@param kind LiqUI_DesignControlKindId
+---@param state LiqUI_DesignControlState
+---@return ColorMixin
+function Design:ResolveFill(kind, state)
+  local map = self.controlKinds[kind]
+  local key = map.rest
+  if not state.enabled then
+    key = map.disabled or map.rest
+  elseif state.down then
+    key = map.pressed
+  elseif state.focused and map.focused then
+    key = map.focused
+  elseif state.selected and state.over then
+    key = map.selectedHover or map.hover
+  elseif state.over then
+    key = map.hover
+  elseif state.selected and map.selected then
+    key = map.selected
+  end
+  return self.scale[key]
 end
