@@ -6,140 +6,112 @@ end
 
 ---@class LiqUI_Design
 local Design = LiqUI.Design or {
-  scale = {},
+  colors = {},
   listeners = {},
   typography = {
     h1 = {size = 24, spacing = 4, color = "white"},
-    h2 = {size = 18, spacing = 3, color = "white"},
-    h3 = {size = 15, spacing = 2, color = "white"},
+    h2 = {size = 20, spacing = 3, color = "white"},
+    h3 = {size = 18, spacing = 2, color = "white"},
     title = {size = 13, spacing = 0, color = "white"},
-    p = {size = 13, spacing = 8, wrap = true, color = "white", file = "Fonts\\ARIALN.TTF"},
+    p = {size = 12, spacing = 4, wrap = true, color = "white"},
     label = {size = 12, spacing = 0, color = "white"},
   },
   layout = {
-    padding = 16,
     gap = 8,
     sectionGap = 16,
     scrollBar = 12,
     swatchSize = 40,
     swatchGap = 8,
   },
+  element = {
+    border = {size = 1},
+    highlight = {color = "white", alpha = 0.1},
+    pushed = {color = "black", alpha = 0.25},
+  },
   window = {
     width = 880,
     height = 700,
-    titlebarHeight = 32,
-    menuWidth = 180,
-    overlayAlpha = 0.85,
-    sampleHeight = 168,
-    borderPixels = 1,
-    fill = "shade80",
-    border = "shade50",
-    titlebar = "shade90",
-    menu = "shade80",
-    body = "shade70",
-  },
-  menu = {
-    row = {
-      rest = "shade80",
-      selected = "primary",
-      disabled = "shade80",
+    background = {normal = "shade80"},
+    border = {size = 1, color = "shade50"},
+    titlebar = {
       height = 32,
-      gap = 2,
-      hover = true,
-      press = true,
-      hoverWash = 0.1,
-      pressWash = 0.25,
-      borderPixels = 0,
+      background = {normal = "shade90"},
+      button = {
+        width = 32,
+        height = 32,
+        background = {normal = "shade90", disabled = "shade90"},
+        highlight = true,
+        pushed = true,
+      },
     },
-  },
-  titlebar = {
-    button = {
-      rest = "shade90",
-      disabled = "shade90",
-      height = 32,
-      width = 32,
-      hover = true,
-      press = true,
-      hoverWash = 0.1,
-      pressWash = 0.25,
-      borderPixels = 0,
+    menu = {
+      width = 180,
+      padding = 14,
+      background = {normal = "shade80"},
+      row = {
+        height = 30,
+        gap = 0,
+        background = {normal = "shade80", selected = "primary", disabled = "shade80"},
+        highlight = true,
+        pushed = true,
+      },
     },
+    body = {padding = 16, background = {normal = "shade70"}},
+    overlay = {alpha = 0.85, background = {normal = "shade90"}},
   },
   button = {
     primary = {
-      rest = "primary",
-      disabled = "shade80",
       height = 28,
       width = 100,
-      hover = true,
-      press = true,
-      hoverWash = 0.1,
-      pressWash = 0.25,
-      borderPixels = 2,
-      borderTint = 35,
-      activeBorder = true,
+      background = {normal = "primary", disabled = "shade80"},
+      border = {size = 2, highlightTint = 35},
+      highlight = true,
+      pushed = true,
     },
     secondary = {
-      rest = "shade50",
-      disabled = "shade80",
       height = 28,
       width = 100,
-      hover = true,
-      press = true,
-      hoverWash = 0.1,
-      pressWash = 0.25,
-      borderPixels = 2,
-      borderTint = 35,
-      activeBorder = true,
+      background = {normal = "shade50", disabled = "shade80"},
+      border = {size = 2, highlightTint = 35},
+      highlight = true,
+      pushed = true,
     },
   },
   input = {
-    rest = "shade80",
-    disabled = "shade90",
     height = 28,
-    hover = true,
-    press = false,
-    hoverWash = 0.1,
-    borderPixels = 1,
-    borderRest = "shade50",
-    borderFocus = "primary",
-    fillLayer = "BACKGROUND",
-    textInset = 8,
+    textInsets = 8,
+    background = {normal = "shade80", disabled = "shade90"},
+    border = {size = 1, color = "shade50", focus = "primary"},
+    highlight = true,
   },
   table = {
-    fill = "shade80",
-    border = "shade50",
-    borderPixels = 1,
-    cellPad = 8,
+    background = {normal = "shade80"},
+    border = {size = 1, color = "shade50"},
+    cellPadding = 8,
     rowHeight = 28,
-    showBorder = true,
-    hoverRows = false,
-    headerHover = false,
+    highlightRows = false,
+    highlightHeader = false,
     header = {
-      rest = "shade90",
-      disabled = "shade90",
-      hover = false,
-      press = false,
-      hoverWash = 0.1,
-      borderPixels = 0,
+      background = {normal = "shade90", disabled = "shade90"},
+      highlight = true,
     },
     row = {
-      rest = "shade80",
-      alt = "shade70",
-      selected = "primary",
-      disabled = "shade80",
-      hover = false,
-      press = true,
-      hoverWash = 0.1,
-      pressWash = 0.25,
-      borderPixels = 0,
+      background = {normal = "shade80", alt = "shade70", selected = "primary", disabled = "shade80"},
+      highlight = true,
+      pushed = true,
     },
   },
 }
 LiqUI.Design = Design
+local TableMergeOptions = LiqUI.Utils.TableMergeOptions
+local SetPixelBackdrop = LiqUI.Utils.SetPixelBackdrop
+local MixFrames = Mixin
 local SetPixelWidth = PixelUtil.SetWidth
 local SetPixelHeight = PixelUtil.SetHeight
 local SetPixelPoint = PixelUtil.SetPoint
+local WHITE8X8 = "Interface/BUTTONS/WHITE8X8"
+---@type LiqUI_DesignSandboxElement[]
+local painted = {}
 local TYPE_IDS = {"h1", "h2", "h3", "title", "p", "label"}
 local DEFAULT_FONT_FILE = "Fonts\\FRIZQT__.TTF"
 local DEFAULT_FONT_FLAGS = ""
@@ -190,7 +162,7 @@ local function ensureColor(color)
   return CreateColor(0, 0, 0, 1)
 end
 
----@param scale LiqUI_DesignScale
+---@param colors LiqUI_DesignColors
 ---@param r number
 ---@param g number
 ---@param b number
@@ -199,14 +171,14 @@ end
 ---@param towardR number
 ---@param towardG number
 ---@param towardB number
-local function rebuildSteps(scale, r, g, b, steps, prefix, towardR, towardG, towardB)
+local function rebuildSteps(colors, r, g, b, steps, prefix, towardR, towardG, towardB)
   for index = 1, #steps do
     local step = steps[index]
     local amount = step / 100
     local key = prefix .. step
-    local color = ensureColor(scale[key])
+    local color = ensureColor(colors[key])
     color:SetRGB(mixChannel(r, towardR, amount), mixChannel(g, towardG, amount), mixChannel(b, towardB, amount))
-    scale[key] = color
+    colors[key] = color
   end
 end
 
@@ -214,13 +186,15 @@ end
 ---@param g number
 ---@param b number
 local function rebuild(r, g, b)
-  local scale = Design.scale
-  scale.primary = ensureColor(scale.primary)
-  scale.primary:SetRGB(r, g, b)
-  scale.white = ensureColor(scale.white)
-  scale.white:SetRGB(1, 1, 1)
-  rebuildSteps(scale, r, g, b, TINT_STEPS, "tint", 1, 1, 1)
-  rebuildSteps(scale, r, g, b, SHADE_STEPS, "shade", 0, 0, 0)
+  local colors = Design.colors
+  colors.primary = ensureColor(colors.primary)
+  colors.primary:SetRGB(r, g, b)
+  colors.white = ensureColor(colors.white)
+  colors.white:SetRGB(1, 1, 1)
+  colors.black = ensureColor(colors.black)
+  colors.black:SetRGB(0, 0, 0)
+  rebuildSteps(colors, r, g, b, TINT_STEPS, "tint", 1, 1, 1)
+  rebuildSteps(colors, r, g, b, SHADE_STEPS, "shade", 0, 0, 0)
 end
 
 local function notify()
@@ -244,7 +218,7 @@ end
 
 ---@return number, number, number
 function Design:GetPrimary()
-  local primary = self.scale.primary
+  local primary = self.colors.primary
   return primary:GetRGB()
 end
 
@@ -258,71 +232,239 @@ function Design:GetDB()
   return getStore()
 end
 
----@param style LiqUI_DesignStyle
----@param state LiqUI_DesignControlState
----@return ColorMixin
-function Design:ResolveFill(style, state)
-  local key = style.rest
-  if not state.enabled then
-    key = style.disabled or style.rest
-  elseif state.selected and style.selected then
-    key = style.selected
-  elseif state.alt and style.alt then
-    key = style.alt
-  end
-  return self.scale[key]
-end
-
----@param style LiqUI_DesignStyle
----@param state LiqUI_DesignControlState
----@return number, number, number, number
-function Design:ResolveWash(style, state)
-  if not state.enabled then
-    return 1, 1, 1, 0
-  end
-  if state.down and style.press then
-    return 0, 0, 0, style.pressWash or 0
-  end
-  if state.over then
-    return 1, 1, 1, style.hoverWash or 0
-  end
-  return 1, 1, 1, 0
-end
-
----@param style LiqUI_DesignStyle
----@param state LiqUI_DesignControlState
----@param fill ColorMixin
----@return ColorMixin?
-function Design:ResolveBorder(style, state, fill)
-  if not style.borderPixels or style.borderPixels == 0 then
+---@param spec LiqUI_DesignOverlaySpec?
+---@param recipe LiqUI_DesignOverlay
+---@return LiqUI_DesignOverlay?
+local function resolveOverlay(spec, recipe)
+  if spec == nil or spec == false then
     return nil
   end
-  if style.activeBorder then
-    if state.enabled and (state.over or state.down or state.focused) then
-      return self:ResolveActiveBorder(fill, style.borderTint)
-    end
-    return fill
+  if spec == true then
+    return recipe
   end
-  local key = style.borderRest
-  if state.focused and style.borderFocus then
-    key = style.borderFocus
+  local merged = {}
+  TableMergeOptions(merged, recipe)
+  TableMergeOptions(merged, spec)
+  return merged
+end
+
+---@param tokens LiqUI_DesignElement
+---@return LiqUI_DesignBorder?
+local function resolveBorder(tokens)
+  local border = tokens.border
+  if not border then
+    return nil
   end
-  if key then
-    return self.scale[key]
+  local merged = {}
+  TableMergeOptions(merged, Design.element.border)
+  TableMergeOptions(merged, border)
+  if not merged.size or merged.size == 0 then
+    return nil
   end
-  return fill
+  return merged
+end
+
+---@param region Region
+---@param texture Texture
+---@param inset number
+local function insetBackground(region, texture, inset)
+  texture:ClearAllPoints()
+  SetPixelPoint(texture, "TOPLEFT", region, "TOPLEFT", inset, -inset, 1, 1)
+  SetPixelPoint(texture, "BOTTOMRIGHT", region, "BOTTOMRIGHT", -inset, inset, 1, 1)
+end
+
+---@param element LiqUI_DesignSandboxElement
+---@return LiqUI_DesignElementState
+function Design:ElementState(element)
+  local enabled = true
+  if element.IsEnabled then
+    enabled = element:IsEnabled() and true or false
+  end
+  local over = element.previewOver
+  if not over and element.IsOver then
+    over = element:IsOver() and true or false
+  end
+  local down = element.previewDown
+  if not down and element.IsDown then
+    down = element:IsDown() and true or false
+  end
+  if element.allowHighlight == false then
+    over = false
+    down = false
+  end
+  ---@type LiqUI_DesignElementState
+  local state = {
+    enabled = enabled,
+    over = over and true or false,
+    down = down and true or false,
+    selected = element.selected,
+    focused = element.focused,
+    alt = element.alt,
+  }
+  return state
+end
+
+---@param tokens LiqUI_DesignElement
+---@param state LiqUI_DesignElementState
+---@return ColorMixin
+function Design:BackgroundColor(tokens, state)
+  local background = tokens.background
+  local key = background.normal
+  if not state.enabled then
+    key = background.disabled or background.normal
+  elseif state.selected and background.selected then
+    key = background.selected
+  elseif state.alt and background.alt then
+    key = background.alt
+  end
+  return self.colors[key]
 end
 
 ---@param fill ColorMixin
----@param tint number?
+---@param tint number
 ---@return ColorMixin
-function Design:ResolveActiveBorder(fill, tint)
-  local color = ensureColor(self.activeBorderColor)
+local function mixTowardWhite(fill, tint)
+  local color = ensureColor(Design.borderMixColor)
   local red, green, blue = fill:GetRGB()
-  local amount = (tint or 0) / 100
+  local amount = tint / 100
   color:SetRGB(mixChannel(red, 1, amount), mixChannel(green, 1, amount), mixChannel(blue, 1, amount))
-  self.activeBorderColor = color
+  Design.borderMixColor = color
   return color
+end
+
+---@param element LiqUI_DesignSandboxElement
+---@param fill ColorMixin
+---@param state LiqUI_DesignElementState
+function Design:PaintBorder(element, fill, state)
+  local border = resolveBorder(element.tokens)
+  if not border then
+    return
+  end
+  SetPixelBackdrop(element, border.size, false)
+  insetBackground(element, element.Background, border.size)
+  insetBackground(element, element.Highlight, border.size)
+  local color = fill
+  if state.focused and border.focus then
+    color = self.colors[border.focus]
+  elseif border.color then
+    color = self.colors[border.color]
+  end
+  if state.enabled and (state.over or state.down) and border.highlightTint then
+    color = mixTowardWhite(color, border.highlightTint)
+  end
+  element:SetBackdropBorderColor(color:GetRGBA())
+end
+
+---@param element LiqUI_DesignSandboxElement
+---@param fill ColorMixin
+---@param tokens LiqUI_DesignElement
+function Design:PaintBackground(element, fill, tokens)
+  local alpha = tokens.alpha or 1
+  local red, green, blue = fill:GetRGB()
+  element.Background:SetVertexColor(red, green, blue, alpha)
+end
+
+---@param element LiqUI_DesignSandboxElement
+---@param tokens LiqUI_DesignElement
+---@param state LiqUI_DesignElementState
+function Design:PaintHighlight(element, tokens, state)
+  local overlay
+  if state.enabled and state.down then
+    overlay = resolveOverlay(tokens.pushed, self.element.pushed)
+  end
+  if not overlay and state.enabled and state.over then
+    overlay = resolveOverlay(tokens.highlight, self.element.highlight)
+  end
+  if not overlay then
+    element.Highlight:SetVertexColor(1, 1, 1, 0)
+    return
+  end
+  local color = self.colors[overlay.color]
+  local red, green, blue = color:GetRGB()
+  element.Highlight:SetVertexColor(red, green, blue, overlay.alpha)
+end
+
+---@param element LiqUI_DesignSandboxElement
+function Design:Paint(element)
+  local tokens = element.tokens
+  local state = self:ElementState(element)
+  local fill = self:BackgroundColor(tokens, state)
+  self:PaintBackground(element, fill, tokens)
+  self:PaintHighlight(element, tokens, state)
+  self:PaintBorder(element, fill, state)
+  local textColor = self.colors.white
+  if not state.enabled then
+    textColor = self.colors.tint50
+  end
+  local fontString = element.GetFontString and element:GetFontString()
+  if fontString then
+    fontString:SetTextColor(textColor:GetRGBA())
+  end
+  if tokens.textInsets then
+    element:SetTextColor(textColor:GetRGBA())
+  end
+  local instructions = element.Instructions
+  if instructions then
+    instructions:SetTextColor(self.colors.tint50:GetRGBA())
+    instructions:SetShown(element:GetText() == "")
+  end
+end
+
+function Design:PaintAll()
+  for index = 1, #painted do
+    painted[index]:Apply()
+  end
+end
+
+---@class LiqUI_DesignMixin
+local ElementMixin = {}
+Design.Mixin = ElementMixin
+
+---@param tokens LiqUI_DesignElement
+function ElementMixin:Setup(tokens)
+  self.tokens = tokens
+  local layer = "ARTWORK"
+  if tokens.textInsets then
+    layer = "BACKGROUND"
+  end
+  local background = self:CreateTexture(nil, layer)
+  background:SetDrawLayer(layer, 0)
+  background:SetTexture(WHITE8X8)
+  self.Background = background
+  local highlight = self:CreateTexture(nil, "ARTWORK")
+  highlight:SetDrawLayer("ARTWORK", 1)
+  highlight:SetTexture(WHITE8X8)
+  self.Highlight = highlight
+  local border = resolveBorder(tokens)
+  if border then
+    SetPixelBackdrop(self, border.size, false)
+    insetBackground(self, background, border.size)
+    insetBackground(self, highlight, border.size)
+  else
+    background:SetAllPoints()
+    highlight:SetAllPoints()
+  end
+  if tokens.highlight or tokens.pushed then
+    MixFrames(self, ButtonStateBehaviorMixin)
+    self:SetScript("OnEnter", self.OnEnter)
+    self:SetScript("OnLeave", self.OnLeave)
+    self:SetScript("OnMouseDown", self.OnMouseDown)
+    self:SetScript("OnMouseUp", self.OnMouseUp)
+    if not tokens.textInsets then
+      self:SetScript("OnEnable", self.OnEnable)
+      self:SetScript("OnDisable", self.OnDisable)
+    end
+    self.OnButtonStateChanged = self.Apply
+  end
+  if tokens.padding then
+    Design:SetPadding(self, tokens.padding)
+  end
+  table.insert(painted, self)
+  Design:Paint(self)
+end
+
+function ElementMixin:Apply()
+  Design:Paint(self)
 end
 
 ---@param parent Frame?
@@ -459,7 +601,7 @@ function Design:Stack(parent, region, options)
 end
 
 ---@param region Region
----@param options LiqUI_DesignElementOptions
+---@param options LiqUI_DesignSizeOptions
 function Design:ApplySize(region, options)
   ---@type LiqUI_DesignSizeBinding
   local binding = {
@@ -531,7 +673,7 @@ function Design:ApplyType(fontString, typeId)
   fontString:SetSpacing(style.spacing or 0)
   fontString:SetShadowColor(0, 0, 0, 0)
   fontString:SetShadowOffset(0, 0)
-  local color = self.scale[style.color]
+  local color = self.colors[style.color]
   fontString:SetTextColor(color:GetRGBA())
   if style.wrap then
     fontString:SetWordWrap(true)
