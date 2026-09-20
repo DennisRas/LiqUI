@@ -60,7 +60,7 @@ local Design = LiqUI.Design or {
   },
   panel = {
     padding = 12,
-    background = {normal = "shade80"},
+    background = {normal = "shade65"},
     header = {
       height = 32,
       padding = 12,
