@@ -17,17 +17,27 @@
 ---@field tint40 ColorMixin
 ---@field tint45 ColorMixin
 ---@field tint50 ColorMixin
+---@field shade5 ColorMixin
 ---@field shade10 ColorMixin
+---@field shade15 ColorMixin
 ---@field shade20 ColorMixin
+---@field shade25 ColorMixin
 ---@field shade30 ColorMixin
+---@field shade35 ColorMixin
 ---@field shade40 ColorMixin
+---@field shade45 ColorMixin
 ---@field shade50 ColorMixin
+---@field shade55 ColorMixin
 ---@field shade60 ColorMixin
+---@field shade65 ColorMixin
 ---@field shade70 ColorMixin
+---@field shade75 ColorMixin
 ---@field shade80 ColorMixin
+---@field shade85 ColorMixin
 ---@field shade90 ColorMixin
+---@field shade95 ColorMixin
 
----@alias LiqUI_DesignColorKey "primary"|"white"|"grey"|"black"|"tint5"|"tint10"|"tint15"|"tint20"|"tint25"|"tint30"|"tint35"|"tint40"|"tint45"|"tint50"|"shade10"|"shade20"|"shade30"|"shade40"|"shade50"|"shade60"|"shade70"|"shade80"|"shade90"
+---@alias LiqUI_DesignColorKey "primary"|"white"|"grey"|"black"|"tint5"|"tint10"|"tint15"|"tint20"|"tint25"|"tint30"|"tint35"|"tint40"|"tint45"|"tint50"|"shade5"|"shade10"|"shade15"|"shade20"|"shade25"|"shade30"|"shade35"|"shade40"|"shade45"|"shade50"|"shade55"|"shade60"|"shade65"|"shade70"|"shade75"|"shade80"|"shade85"|"shade90"|"shade95"
 
 ---@class LiqUI_DesignBackground
 ---@field normal LiqUI_DesignColorKey
@@ -51,6 +61,7 @@
 ---@field hover LiqUI_DesignColorKey?
 ---@field pressed LiqUI_DesignColorKey?
 ---@field disabled LiqUI_DesignColorKey?
+---@field selected LiqUI_DesignColorKey?
 
 ---@class LiqUI_DesignAccent
 ---@field size number
@@ -64,7 +75,7 @@
 ---@field alpha number?
 ---@field textInsets number?
 ---@field round boolean?
----@field background LiqUI_DesignBackground
+---@field background LiqUI_DesignBackground?
 ---@field border LiqUI_DesignBorder?
 ---@field text LiqUI_DesignText?
 ---@field accent LiqUI_DesignAccent?
@@ -77,6 +88,12 @@
 ---@field focused boolean?
 ---@field alt boolean?
 
+---@class LiqUI_DesignSquareBorder
+---@field Top Texture
+---@field Bottom Texture
+---@field Left Texture
+---@field Right Texture
+
 ---@class LiqUI_DesignMixin : Frame
 ---@field tokens LiqUI_DesignElement
 ---@field allowHighlight boolean?
@@ -85,8 +102,9 @@
 ---@field previewOver boolean?
 ---@field previewDown boolean?
 ---@field alt boolean?
----@field Background Texture
+---@field Background Texture?
 ---@field Border Texture?
+---@field SquareBorder LiqUI_DesignSquareBorder?
 ---@field AccentClip Frame?
 ---@field Accent Texture?
 ---@field Instructions FontString?
@@ -125,6 +143,7 @@
 ---@field typography table<LiqUI_DesignTypeId, LiqUI_DesignTypeStyle>
 ---@field layout LiqUI_DesignLayout
 ---@field window LiqUI_DesignWindow
+---@field panel LiqUI_DesignPanel
 ---@field button LiqUI_DesignButton
 ---@field input LiqUI_DesignElement
 ---@field table LiqUI_DesignTable
@@ -152,18 +171,26 @@
 ---@field padding number
 
 ---@class LiqUI_DesignWindow : LiqUI_DesignElement
----@field border LiqUI_DesignBorder
 ---@field titlebar LiqUI_DesignWindowTitlebar
 ---@field menu LiqUI_DesignWindowMenu
 ---@field body LiqUI_DesignWindowBody
 ---@field overlay LiqUI_DesignElement
+
+---@class LiqUI_DesignPanelHeader : LiqUI_DesignElement
+---@field height number
+---@field padding number
+
+---@class LiqUI_DesignPanel : LiqUI_DesignElement
+---@field padding number
+---@field background LiqUI_DesignBackground
+---@field header LiqUI_DesignPanelHeader
+---@field maxHeight number?
 
 ---@class LiqUI_DesignButton
 ---@field primary LiqUI_DesignElement
 ---@field secondary LiqUI_DesignElement
 
 ---@class LiqUI_DesignTable : LiqUI_DesignElement
----@field border LiqUI_DesignBorder
 ---@field cellPadding number
 ---@field rowHeight number
 ---@field highlightRows boolean
@@ -207,10 +234,27 @@
 ---@field overlay LiqUI_DesignSandboxElement?
 
 ---@class LiqUI_DesignSandboxWindowOptions
----@field showBorder boolean?
 ---@field showOverlay boolean?
 ---@field overlayAlpha number?
 ---@field bodyBackground LiqUI_DesignColorKey?
+
+---@class LiqUI_DesignSandboxPanelOptions
+---@field title string?
+---@field text string?
+---@field padding number?
+---@field maxHeight number?
+---@field showBackground boolean?
+---@field showBorder boolean?
+---@field showHeaderBackground boolean?
+---@field background LiqUI_DesignColorKey?
+---@field borderColor LiqUI_DesignColorKey?
+---@field headerBackground LiqUI_DesignColorKey?
+
+---@class LiqUI_DesignSandboxPanelSample
+---@field frame LiqUI_DesignSandboxElement
+---@field header LiqUI_DesignSandboxElement?
+---@field body Frame
+---@field scrollBox LiqUI_ScrollBox?
 
 ---@class LiqUI_DesignTableOptions
 ---@field showBorder boolean?
@@ -223,19 +267,20 @@
 ---@field inset number?
 ---@field alt boolean?
 
----@alias LiqUI_DesignSandboxPageId "colors"|"window"|"table"|"buttons"|"input"|"text"
+---@alias LiqUI_DesignSandboxPageId "colors"|"window"|"panel"|"table"|"buttons"|"input"|"text"
 
 ---@class LiqUI_DesignSandboxTitlebar : LiqUI_DesignSandboxElement
 ---@field title FontString
 ---@field CloseButton LiqUI_DesignSandboxElement
 
----@class LiqUI_DesignSandboxElement : Button, EditBox, BackdropTemplate, LiqUI_DesignMixin
+---@class LiqUI_DesignSandboxElement : Button, EditBox, LiqUI_DesignMixin
 ---@field IsOver fun(self: LiqUI_DesignSandboxElement): boolean?
 ---@field IsDown fun(self: LiqUI_DesignSandboxElement): boolean?
 
 ---@class LiqUI_DesignSandboxMenu : LiqUI_DesignSandboxElement
 ---@field colorsRow LiqUI_DesignSandboxElement
 ---@field windowRow LiqUI_DesignSandboxElement
+---@field panelRow LiqUI_DesignSandboxElement
 ---@field tableRow LiqUI_DesignSandboxElement
 ---@field buttonsRow LiqUI_DesignSandboxElement
 ---@field inputRow LiqUI_DesignSandboxElement
@@ -246,6 +291,10 @@
 ---@field primaryLabel FontString
 
 ---@class LiqUI_DesignSandboxWindowPage : Frame
+---@field heading FontString
+---@field scrollBox LiqUI_ScrollBox
+
+---@class LiqUI_DesignSandboxPanelPage : Frame
 ---@field heading FontString
 ---@field scrollBox LiqUI_ScrollBox
 
@@ -268,6 +317,7 @@
 ---@class LiqUI_DesignSandboxBody : LiqUI_DesignSandboxElement
 ---@field colorsPage LiqUI_DesignSandboxColorsPage
 ---@field windowPage LiqUI_DesignSandboxWindowPage
+---@field panelPage LiqUI_DesignSandboxPanelPage
 ---@field tablePage LiqUI_DesignSandboxTablePage
 ---@field buttonsPage LiqUI_DesignSandboxButtonsPage
 ---@field inputPage LiqUI_DesignSandboxInputPage

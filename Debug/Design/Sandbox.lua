@@ -16,6 +16,9 @@ local SetPixelSize = PixelUtil.SetSize
 local SetPixelWidth = PixelUtil.SetWidth
 local SetPixelHeight = PixelUtil.SetHeight
 local WINDOW_SAMPLE_HEIGHT = 168
+local PANEL_SCROLL_HEIGHT = 160
+---@type LiqUI_DesignBorder
+local SURFACE_BORDER = {size = 1, color = "shade60"}
 ---@type number[]
 local TABLE_COLUMNS = {42, 33, 25}
 local TABLE_SAMPLE_ROWS = {
@@ -25,7 +28,8 @@ local TABLE_SAMPLE_ROWS = {
   {"Mara", "DPS", "3055"},
 }
 local TINT_KEYS = {"tint5", "tint10", "tint15", "tint20", "tint25", "tint30", "tint35", "tint40", "tint45", "tint50"}
-local SHADE_KEYS = {"shade10", "shade20", "shade30", "shade40", "shade50", "shade60", "shade70", "shade80", "shade90"}
+local SHADE_KEYS_NEAR = {"shade5", "shade10", "shade15", "shade20", "shade25", "shade30", "shade35", "shade40", "shade45", "shade50"}
+local SHADE_KEYS_FAR = {"shade55", "shade60", "shade65", "shade70", "shade75", "shade80", "shade85", "shade90", "shade95"}
 local FIXED_KEYS = {"white", "grey", "black"}
 local LOREM_PARAGRAPH =
   "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
@@ -39,6 +43,8 @@ local sandbox
 local colorBindings = {}
 ---@type LiqUI_DesignTypeSample[]
 local typeSamples = {}
+---@type LiqUI_ScrollBox[]
+local panelScrollBoxes = {}
 
 ---@param color ColorMixin
 ---@return number, number, number, number
@@ -112,12 +118,8 @@ end
 ---@return LiqUI_DesignSandboxElement
 local function createSampleButton(parent, tokens, text, options)
   options = options or {}
-  local template
-  if tokens.border and not tokens.round then
-    template = "BackdropTemplate"
-  end
   ---@class LiqUI_DesignSandboxElement
-  local button = CreateFrame("Button", nil, parent, template)
+  local button = CreateFrame("Button", nil, parent)
   setButtonLabel(button, text)
   setupElement(button, tokens)
   ---@type LiqUI_DesignSizeOptions
@@ -198,21 +200,10 @@ end
 ---@return LiqUI_DesignSandboxWindowSample
 local function createSampleWindow(parent, title, options)
   options = options or {}
-  local showBorder = options.showBorder
-  if showBorder == nil then
-    showBorder = true
-  end
-  local borderSize = 0
-  local template
   ---@type LiqUI_DesignElement
   local windowTokens = {background = Design.window.background}
-  if showBorder then
-    template = "BackdropTemplate"
-    windowTokens.border = Design.window.border
-    borderSize = Design.window.border.size
-  end
   ---@class LiqUI_DesignSandboxElement
-  local frame = CreateFrame("Frame", nil, parent, template)
+  local frame = CreateFrame("Frame", nil, parent)
   setupElement(frame, windowTokens)
   ---@type LiqUI_DesignSizeOptions
   local windowSize = {width = "100%", height = WINDOW_SAMPLE_HEIGHT}
@@ -221,8 +212,8 @@ local function createSampleWindow(parent, title, options)
   ---@class LiqUI_DesignSandboxElement
   local titlebar = CreateFrame("Frame", nil, frame)
   setupElement(titlebar, Design.window.titlebar)
-  SetPixelPoint(titlebar, "TOPLEFT", frame, "TOPLEFT", borderSize, -borderSize, 1, 1)
-  SetPixelPoint(titlebar, "TOPRIGHT", frame, "TOPRIGHT", -borderSize, -borderSize, 1, 1)
+  SetPixelPoint(titlebar, "TOPLEFT", frame, "TOPLEFT", 0, 0)
+  SetPixelPoint(titlebar, "TOPRIGHT", frame, "TOPRIGHT", 0, 0)
   SetPixelHeight(titlebar, Design.window.titlebar.height)
 
   local titleText = createTypeString(titlebar, "title")
@@ -244,7 +235,7 @@ local function createSampleWindow(parent, title, options)
   local body = CreateFrame("Frame", nil, frame)
   setupElement(body, bodyTokens)
   SetPixelPoint(body, "TOPLEFT", titlebar, "BOTTOMLEFT", 0, 0)
-  SetPixelPoint(body, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -borderSize, borderSize, 1, 1)
+  SetPixelPoint(body, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
 
   local bodyCopy = createTypeString(body, "p")
   SetPixelPoint(bodyCopy, "TOPLEFT", body, "TOPLEFT", Design.window.body.padding, -Design.window.body.padding)
@@ -295,6 +286,165 @@ local function addWindowSample(parent, yOffset, heading, options)
   local sample = createSampleWindow(parent, "Weekly vault", options)
   SetPixelPoint(sample.frame, "TOPLEFT", parent, "TOPLEFT", Design.window.body.padding, windowY)
   return windowY - WINDOW_SAMPLE_HEIGHT - layout.sectionGap
+end
+
+---@param options LiqUI_DesignSandboxPanelOptions
+---@return LiqUI_DesignElement
+local function panelShellTokens(options)
+  local defaults = Design.panel
+  local padding = options.padding
+  if padding == nil then
+    padding = defaults.padding
+  end
+  ---@type LiqUI_DesignElement
+  local tokens = {padding = padding}
+  if options.showBackground then
+    tokens.background = {normal = options.background or defaults.background.normal}
+    if options.showBorder then
+      tokens.border = {
+        size = SURFACE_BORDER.size,
+        color = options.borderColor or SURFACE_BORDER.color,
+      }
+    end
+  end
+  return tokens
+end
+
+---@param parent Frame
+---@param options LiqUI_DesignSandboxPanelOptions
+---@return LiqUI_DesignSandboxPanelSample
+local function createSamplePanel(parent, options)
+  options = options or {}
+  local defaults = Design.panel
+  local tokens = panelShellTokens(options)
+  ---@class LiqUI_DesignSandboxElement
+  local frame = CreateFrame("Frame", nil, parent)
+  setupElement(frame, tokens)
+  Design:ApplySize(frame, {width = "100%"})
+
+  local inset = 0
+  if tokens.border then
+    inset = tokens.border.size
+  end
+  local header
+  local headerHeight = 0
+  if options.title then
+    ---@type LiqUI_DesignElement
+    local headerTokens = {
+      text = defaults.header.text,
+    }
+    if options.showHeaderBackground ~= false then
+      headerTokens.background = {
+        normal = options.headerBackground or defaults.header.background.normal,
+      }
+    end
+    ---@class LiqUI_DesignSandboxElement
+    header = CreateFrame("Frame", nil, frame)
+    setupElement(header, headerTokens)
+    SetPixelPoint(header, "TOPLEFT", frame, "TOPLEFT", inset, -inset)
+    SetPixelPoint(header, "TOPRIGHT", frame, "TOPRIGHT", -inset, -inset)
+    SetPixelHeight(header, defaults.header.height)
+    headerHeight = defaults.header.height
+    local title = createTypeString(header, "title")
+    SetPixelPoint(title, "LEFT", header, "LEFT", defaults.header.padding, 0)
+    title:SetText(options.title)
+  end
+
+  local body = CreateFrame("Frame", nil, frame)
+  if header then
+    SetPixelPoint(body, "TOPLEFT", header, "BOTTOMLEFT", 0, 0)
+  else
+    SetPixelPoint(body, "TOPLEFT", frame, "TOPLEFT", inset, -inset)
+  end
+  SetPixelPoint(body, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -inset, inset)
+
+  local padding = tokens.padding or 0
+  local text = options.text or "Panel body copy."
+  local scrollBox
+  if options.maxHeight then
+    SetPixelHeight(frame, options.maxHeight)
+    ---@type LiqUI_ScrollBoxOptions
+    local scrollOptions = {barWidth = layout.scrollBar}
+    scrollBox = CreateScrollBox(body, nil, scrollOptions)
+    SetPixelPoint(scrollBox, "TOPLEFT", body, "TOPLEFT", 0, 0)
+    SetPixelPoint(scrollBox, "BOTTOMRIGHT", body, "BOTTOMRIGHT", -layout.scrollBar, 0)
+    BindScrollBoxMouseWheel(frame, scrollBox)
+    local scrollChild = scrollBox.scrollChild
+    Design:SetPadding(scrollChild, padding)
+    ---@type LiqUI_DesignStackOptions
+    local textStack = {
+      padding = padding,
+      gap = 8,
+      onLayout = function()
+        scrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
+      end,
+    }
+    local copies = {text, LOREM_PARAGRAPH, LOREM_PARAGRAPH_TWO}
+    for index = 1, #copies do
+      local fontString = createTypeString(scrollChild, "p")
+      fontString:SetJustifyH("LEFT")
+      ---@type LiqUI_DesignSizeOptions
+      local copySize = {width = "100%"}
+      Design:ApplySize(fontString, copySize)
+      Design:Stack(scrollChild, fontString, textStack)
+      fontString:SetText(copies[index])
+    end
+    Design:RequestStackLayout(scrollChild)
+    table.insert(panelScrollBoxes, scrollBox)
+  else
+    Design:SetPadding(body, padding)
+    local bodyCopy = createTypeString(body, "p")
+    bodyCopy:SetJustifyH("LEFT")
+    bodyCopy:SetText(text)
+    ---@type LiqUI_DesignSizeOptions
+    local bodyCopySize = {width = "100%"}
+    Design:ApplySize(bodyCopy, bodyCopySize)
+    SetPixelPoint(bodyCopy, "TOPLEFT", body, "TOPLEFT", padding, -padding)
+    local sizing = false
+    local function sizeToContent()
+      if sizing then
+        return
+      end
+      sizing = true
+      local textHeight = math.max(1, bodyCopy:GetStringHeight())
+      local height = headerHeight + padding * 2 + textHeight + inset * 2
+      SetPixelHeight(frame, height)
+      sizing = false
+    end
+    frame:HookScript("OnSizeChanged", sizeToContent)
+    sizeToContent()
+  end
+
+  ---@type LiqUI_DesignSandboxPanelSample
+  local sample = {
+    frame = frame,
+    header = header,
+    body = body,
+    scrollBox = scrollBox,
+  }
+  return sample
+end
+
+---@param parent Frame
+---@param heading string
+---@param options LiqUI_DesignSandboxPanelOptions
+---@param stackOptions LiqUI_DesignStackOptions
+local function addPanelSample(parent, heading, options, stackOptions)
+  local wrap = CreateFrame("Frame", nil, parent)
+  Design:ApplySize(wrap, {width = "100%"})
+  local label = createTypeString(wrap, "h3")
+  label:SetText(heading)
+  SetPixelPoint(label, "TOPLEFT", wrap, "TOPLEFT", 0, 0)
+  local sample = createSamplePanel(wrap, options)
+  SetPixelPoint(sample.frame, "TOPLEFT", label, "BOTTOMLEFT", 0, -layout.gap)
+  local function sizeWrap()
+    local height = label:GetStringHeight() + layout.gap + sample.frame:GetHeight()
+    SetPixelHeight(wrap, math.max(1, height))
+    Design:RequestStackLayout(parent)
+  end
+  sample.frame:HookScript("OnSizeChanged", sizeWrap)
+  sizeWrap()
+  Design:Stack(parent, wrap, stackOptions)
 end
 
 ---@param parent Frame
@@ -368,30 +518,21 @@ end
 ---@param options LiqUI_DesignTableOptions
 ---@return LiqUI_DesignSandboxElement, number, number
 local function createTableShell(parent, yOffset, options)
-  local showBorder = options.showBorder
-  if showBorder == nil then
-    showBorder = true
-  end
-  local template
   ---@type LiqUI_DesignElement
-  local tokens = Design.table
-  if showBorder then
-    template = "BackdropTemplate"
-  else
-    ---@type LiqUI_DesignElement
-    local backgroundOnly = {background = Design.table.background}
-    tokens = backgroundOnly
+  local tokens = {background = Design.table.background}
+  if options.showBorder then
+    tokens.border = SURFACE_BORDER
   end
   ---@class LiqUI_DesignSandboxElement
-  local frame = CreateFrame("Frame", nil, parent, template)
+  local frame = CreateFrame("Frame", nil, parent)
   setupElement(frame, tokens)
   SetPixelPoint(frame, "TOPLEFT", parent, "TOPLEFT", Design.window.body.padding, yOffset)
   ---@type LiqUI_DesignSizeOptions
   local sizeOptions = {width = "100%"}
   Design:ApplySize(frame, sizeOptions)
   local inset = 0
-  if showBorder then
-    inset = Design.table.border.size
+  if options.showBorder then
+    inset = SURFACE_BORDER.size
     Design:SetPadding(frame, inset)
   end
   return frame, -inset, inset
@@ -449,18 +590,21 @@ local function selectPage(pageId)
   end
   sandbox.menu.colorsRow.selected = pageId == "colors"
   sandbox.menu.windowRow.selected = pageId == "window"
+  sandbox.menu.panelRow.selected = pageId == "panel"
   sandbox.menu.tableRow.selected = pageId == "table"
   sandbox.menu.buttonsRow.selected = pageId == "buttons"
   sandbox.menu.inputRow.selected = pageId == "input"
   sandbox.menu.textRow.selected = pageId == "text"
   sandbox.body.colorsPage:SetShown(pageId == "colors")
   sandbox.body.windowPage:SetShown(pageId == "window")
+  sandbox.body.panelPage:SetShown(pageId == "panel")
   sandbox.body.tablePage:SetShown(pageId == "table")
   sandbox.body.buttonsPage:SetShown(pageId == "buttons")
   sandbox.body.inputPage:SetShown(pageId == "input")
   sandbox.body.textPage:SetShown(pageId == "text")
   sandbox.menu.colorsRow:Apply()
   sandbox.menu.windowRow:Apply()
+  sandbox.menu.panelRow:Apply()
   sandbox.menu.tableRow:Apply()
   sandbox.menu.buttonsRow:Apply()
   sandbox.menu.inputRow:Apply()
@@ -534,11 +678,14 @@ end
 ---@param heading string
 ---@return number
 local function layoutSwatchRow(parent, keys, source, yOffset, heading)
-  local headingLabel = createTypeString(parent, "h3")
-  SetPixelPoint(headingLabel, "TOPLEFT", parent, "TOPLEFT", Design.window.body.padding, yOffset)
-  headingLabel:SetText(heading)
+  local rowY = yOffset
+  if heading ~= "" then
+    local headingLabel = createTypeString(parent, "h3")
+    SetPixelPoint(headingLabel, "TOPLEFT", parent, "TOPLEFT", Design.window.body.padding, yOffset)
+    headingLabel:SetText(heading)
+    rowY = yOffset - 22
+  end
 
-  local rowY = yOffset - 22
   for index = 1, #keys do
     local key = keys[index]
     local swatch = createSwatch(parent, source[key], key)
@@ -621,13 +768,19 @@ local function paintSandbox()
   if windowScrollBox then
     windowScrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
   end
+  local panelScrollBox = sandbox.body.panelPage.scrollBox
+  if panelScrollBox then
+    panelScrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
+  end
+  for index = 1, #panelScrollBoxes do
+    panelScrollBoxes[index]:FullUpdate(ScrollBoxConstants.UpdateImmediately)
+  end
 end
 
 local function buildSandbox()
   local windowTokens = Design.window
-  local borderSize = windowTokens.border.size
   ---@class LiqUI_DesignSandbox
-  local window = CreateFrame("Frame", "LiqUIDesignSandbox", UIParent, "BackdropTemplate")
+  local window = CreateFrame("Frame", "LiqUIDesignSandbox", UIParent)
   sandbox = window
   setupElement(window, windowTokens)
   SetPixelSize(window, windowTokens.width, windowTokens.height)
@@ -641,8 +794,8 @@ local function buildSandbox()
   local titlebar = CreateFrame("Frame", nil, window)
   window.titlebar = titlebar
   setupElement(titlebar, windowTokens.titlebar)
-  SetPixelPoint(titlebar, "TOPLEFT", window, "TOPLEFT", borderSize, -borderSize, 1, 1)
-  SetPixelPoint(titlebar, "TOPRIGHT", window, "TOPRIGHT", -borderSize, -borderSize, 1, 1)
+  SetPixelPoint(titlebar, "TOPLEFT", window, "TOPLEFT", 0, 0)
+  SetPixelPoint(titlebar, "TOPRIGHT", window, "TOPRIGHT", 0, 0)
   SetPixelHeight(titlebar, windowTokens.titlebar.height)
   titlebar:EnableMouse(true)
   titlebar:RegisterForDrag("LeftButton")
@@ -671,7 +824,7 @@ local function buildSandbox()
   window.menu = menu
   setupElement(menu, windowTokens.menu)
   SetPixelPoint(menu, "TOPLEFT", titlebar, "BOTTOMLEFT", 0, 0)
-  SetPixelPoint(menu, "BOTTOMLEFT", window, "BOTTOMLEFT", borderSize, borderSize, 1, 1)
+  SetPixelPoint(menu, "BOTTOMLEFT", window, "BOTTOMLEFT", 0, 0)
   SetPixelWidth(menu, windowTokens.menu.width)
 
   ---@class LiqUI_DesignSandboxBody
@@ -679,7 +832,7 @@ local function buildSandbox()
   window.body = body
   setupElement(body, windowTokens.body)
   SetPixelPoint(body, "TOPLEFT", titlebar, "BOTTOMLEFT", windowTokens.menu.width, 0)
-  SetPixelPoint(body, "BOTTOMRIGHT", window, "BOTTOMRIGHT", -borderSize, borderSize, 1, 1)
+  SetPixelPoint(body, "BOTTOMRIGHT", window, "BOTTOMRIGHT", 0, 0)
 
   ---@class LiqUI_DesignSandboxColorsPage
   local colorsPage = CreateFrame("Frame", nil, body)
@@ -698,7 +851,8 @@ local function buildSandbox()
   local yOffset = -Design.window.body.padding - 90
   yOffset = layoutSwatchRow(colorsPage, FIXED_KEYS, Design.colors, yOffset, "Fixed")
   yOffset = layoutSwatchRow(colorsPage, TINT_KEYS, Design.colors, yOffset, "Tints  (toward white)")
-  layoutSwatchRow(colorsPage, SHADE_KEYS, Design.colors, yOffset, "Shades  (toward black)")
+  yOffset = layoutSwatchRow(colorsPage, SHADE_KEYS_NEAR, Design.colors, yOffset, "Shades  (toward black)")
+  layoutSwatchRow(colorsPage, SHADE_KEYS_FAR, Design.colors, yOffset, "")
 
   ---@class LiqUI_DesignSandboxWindowPage
   local windowPage = CreateFrame("Frame", nil, body)
@@ -722,14 +876,76 @@ local function buildSandbox()
   windowHeading:SetText("Window")
 
   local windowY = -Design.window.body.padding - windowHeading:GetStringHeight() - layout.sectionGap
-  windowY = addWindowSample(windowChild, windowY, "Border", {showBorder = true})
-  windowY = addWindowSample(windowChild, windowY, "No border", {showBorder = false})
-  windowY = addWindowSample(windowChild, windowY, "Body shade80", {showBorder = true, bodyBackground = "shade80"})
-  windowY = addWindowSample(windowChild, windowY, "Body shade90", {showBorder = true, bodyBackground = "shade90"})
-  windowY = addWindowSample(windowChild, windowY, "Overlay", {showBorder = true, showOverlay = true})
-  windowY = addWindowSample(windowChild, windowY, "Overlay, 90%", {showBorder = true, showOverlay = true, overlayAlpha = 0.9})
+  windowY = addWindowSample(windowChild, windowY, "Fill", {})
+  windowY = addWindowSample(windowChild, windowY, "Body shade80", {bodyBackground = "shade80"})
+  windowY = addWindowSample(windowChild, windowY, "Body shade90", {bodyBackground = "shade90"})
+  windowY = addWindowSample(windowChild, windowY, "Overlay", {showOverlay = true})
+  windowY = addWindowSample(windowChild, windowY, "Overlay, 90%", {showOverlay = true, overlayAlpha = 0.9})
   windowChild:SetHeight(math.max(1, -windowY + Design.window.body.padding))
   windowScrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
+
+  ---@class LiqUI_DesignSandboxPanelPage
+  local panelPage = CreateFrame("Frame", nil, body)
+  body.panelPage = panelPage
+  panelPage:SetAllPoints()
+  panelPage:Hide()
+
+  ---@type LiqUI_ScrollBoxOptions
+  local panelPageScrollOptions = {barWidth = layout.scrollBar}
+  local panelPageScrollBox = CreateScrollBox(panelPage, nil, panelPageScrollOptions)
+  panelPage.scrollBox = panelPageScrollBox
+  SetPixelPoint(panelPageScrollBox, "TOPLEFT", panelPage, "TOPLEFT", 0, 0)
+  SetPixelPoint(panelPageScrollBox, "BOTTOMRIGHT", panelPage, "BOTTOMRIGHT", -layout.scrollBar, 0)
+  local panelChild = panelPageScrollBox.scrollChild
+  BindScrollBoxMouseWheel(panelPage, panelPageScrollBox)
+  Design:SetPadding(panelChild, Design.window.body.padding)
+  ---@type LiqUI_DesignStackOptions
+  local panelStack = {
+    padding = Design.window.body.padding,
+    gap = layout.sectionGap,
+    onLayout = function()
+      panelPageScrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
+    end,
+  }
+  local panelHeading = createTypeString(panelChild, "h1")
+  panelPage.heading = panelHeading
+  panelHeading:SetText("Panel")
+  ---@type LiqUI_DesignSizeOptions
+  local panelHeadingSize = {width = "100%"}
+  Design:ApplySize(panelHeading, panelHeadingSize)
+  Design:Stack(panelChild, panelHeading, panelStack)
+  addPanelSample(panelChild, "Fill", {
+    showBackground = true,
+    text = "A panel can be a fill with padding and no header.",
+  }, panelStack)
+  addPanelSample(panelChild, "Header", {
+    title = "Notes",
+    showBackground = true,
+    text = "Optional header, no buttons. Fill uses shade80.",
+  }, panelStack)
+  addPanelSample(panelChild, "Header, border", {
+    title = "Notes",
+    showBackground = true,
+    showBorder = true,
+    text = "Header, fill, and border together.",
+  }, panelStack)
+  addPanelSample(panelChild, "Header, no header fill", {
+    title = "Caption",
+    showBackground = true,
+    showHeaderBackground = false,
+    text = "The header can be text only.",
+  }, panelStack)
+  addPanelSample(panelChild, "Padding only", {
+    padding = 16,
+    text = "No fill, no border, no header. Padding still insets the copy.",
+  }, panelStack)
+  addPanelSample(panelChild, "Header, max height", {
+    title = "Preview",
+    showBackground = true,
+    showBorder = true,
+    maxHeight = PANEL_SCROLL_HEIGHT,
+    text = LOREM_BLOCK,
+  }, panelStack)
 
   ---@class LiqUI_DesignSandboxTablePage
   local tablePage = CreateFrame("Frame", nil, body)
@@ -753,12 +969,13 @@ local function buildSandbox()
   tableHeading:SetText("Table")
 
   local tableY = -Design.window.body.padding - tableHeading:GetStringHeight() - layout.sectionGap
+  tableY = addTableSample(tableChild, tableY, "Fill", {})
   tableY = addTableSample(tableChild, tableY, "Border", {showBorder = true})
-  tableY = addTableSample(tableChild, tableY, "Stripes", {showBorder = false, stripes = true})
-  tableY = addTableSample(tableChild, tableY, "Hover", {showBorder = false, highlightRows = true})
+  tableY = addTableSample(tableChild, tableY, "Stripes", {stripes = true})
+  tableY = addTableSample(tableChild, tableY, "Hover", {highlightRows = true})
   tableY = addTableSample(tableChild, tableY, "Border, stripes", {showBorder = true, stripes = true})
   tableY = addTableSample(tableChild, tableY, "Border, hover", {showBorder = true, highlightRows = true})
-  tableY = addTableSample(tableChild, tableY, "Stripes, hover", {showBorder = false, stripes = true, highlightRows = true})
+  tableY = addTableSample(tableChild, tableY, "Stripes, hover", {stripes = true, highlightRows = true})
   tableY = addTableSample(tableChild, tableY, "Border, stripes, hover", {showBorder = true, stripes = true, highlightRows = true})
   tableChild:SetHeight(math.max(1, -tableY + Design.window.body.padding))
   tableScrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
@@ -871,13 +1088,15 @@ local function buildSandbox()
   menu.colorsRow = colorsRow
   local windowRow = createMenuRow(menu, "Window", "window", -(menuPadding + menuStep))
   menu.windowRow = windowRow
-  local tableRow = createMenuRow(menu, "Table", "table", -(menuPadding + menuStep * 2))
+  local panelRow = createMenuRow(menu, "Panel", "panel", -(menuPadding + menuStep * 2))
+  menu.panelRow = panelRow
+  local tableRow = createMenuRow(menu, "Table", "table", -(menuPadding + menuStep * 3))
   menu.tableRow = tableRow
-  local buttonsRow = createMenuRow(menu, "Buttons", "buttons", -(menuPadding + menuStep * 3))
+  local buttonsRow = createMenuRow(menu, "Buttons", "buttons", -(menuPadding + menuStep * 4))
   menu.buttonsRow = buttonsRow
-  local inputRow = createMenuRow(menu, "Input", "input", -(menuPadding + menuStep * 4))
+  local inputRow = createMenuRow(menu, "Input", "input", -(menuPadding + menuStep * 5))
   menu.inputRow = inputRow
-  local textRow = createMenuRow(menu, "Text", "text", -(menuPadding + menuStep * 5))
+  local textRow = createMenuRow(menu, "Text", "text", -(menuPadding + menuStep * 6))
   menu.textRow = textRow
   selectPage("colors")
 

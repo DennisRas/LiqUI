@@ -31,14 +31,13 @@ local Design = LiqUI.Design or {
     width = 880,
     height = 700,
     background = {normal = "shade90"},
-    border = {size = 1, color = "shade70"},
     titlebar = {
       height = 32,
       background = {normal = "shade90"},
       button = {
         width = 32,
         height = 32,
-        background = {normal = "shade90", hover = "shade60", pressed = "shade50", disabled = "shade90"},
+        background = {normal = "shade90", hover = "shade75", pressed = "shade65", disabled = "shade90"},
         text = {normal = "white", disabled = "grey"},
       },
     },
@@ -47,33 +46,43 @@ local Design = LiqUI.Design or {
       padding = 8,
       background = {normal = "shade90"},
       row = {
-        height = 36,
-        gap = 4,
+        height = 32,
+        gap = 0,
         padding = 12,
         round = true,
-        background = {normal = "shade90", hover = "shade60", pressed = "shade50", selected = "shade80", disabled = "shade90"},
-        text = {normal = "white", disabled = "grey"},
-        accent = {size = 3, color = "primary"},
+        background = {normal = "shade90", hover = "shade70", pressed = "shade50", selected = "shade60", disabled = "shade90"},
+        text = {normal = "white", hover = "white", selected = "white", pressed = "white", disabled = "grey"},
+        accent = {size = 4, color = "primary"},
       },
     },
-    body = {padding = 16, background = {normal = "shade70"}},
+    body = {padding = 16, background = {normal = "shade75"}},
     overlay = {alpha = 1, background = {normal = "shade90"}},
+  },
+  panel = {
+    padding = 12,
+    background = {normal = "shade80"},
+    header = {
+      height = 32,
+      padding = 12,
+      background = {normal = "shade90"},
+      text = {normal = "white"},
+    },
   },
   button = {
     primary = {
       height = 28,
-      width = 100,
+      width = 120,
       round = true,
-      background = {normal = "primary", pressed = "shade20", disabled = "shade80"},
-      border = {size = 2, hover = "tint20", pressed = "tint10", disabled = "shade80"},
+      background = {normal = "primary", hover = "tint10",pressed = "shade20", disabled = "shade80"},
+      border = {size = 1, hover = "tint40", pressed = "tint20", disabled = "shade80"},
       text = {normal = "white", disabled = "grey"},
     },
     secondary = {
       height = 28,
-      width = 100,
+      width = 120,
       round = true,
-      background = {normal = "shade70", pressed = "shade80", disabled = "shade80"},
-      border = {size = 2, hover = "tint20", pressed = "shade50", disabled = "shade80"},
+      background = {normal = "shade50", hover = "shade45", pressed = "shade50", disabled = "shade80"},
+      border = {size = 1, hover = "shade10", pressed = "shade20", disabled = "shade80"},
       text = {normal = "white", disabled = "grey"},
     },
   },
@@ -87,7 +96,6 @@ local Design = LiqUI.Design or {
   },
   table = {
     background = {normal = "shade80"},
-    border = {size = 1, color = "shade70"},
     cellPadding = 8,
     rowHeight = 28,
     highlightRows = false,
@@ -96,14 +104,13 @@ local Design = LiqUI.Design or {
       background = {normal = "shade90", hover = "shade80", disabled = "shade90"},
     },
     row = {
-      background = {normal = "shade80", hover = "shade60", alt = "shade70", disabled = "shade80"},
+      background = {normal = "shade85", hover = "shade65", alt = "shade80", disabled = "shade80"},
       text = {normal = "white", disabled = "grey"},
     },
   },
 }
 LiqUI.Design = Design
 local TableMergeOptions = LiqUI.Utils.TableMergeOptions
-local SetPixelBackdrop = LiqUI.Utils.SetPixelBackdrop
 local MixFrames = Mixin
 local SetPixelWidth = PixelUtil.SetWidth
 local SetPixelHeight = PixelUtil.SetHeight
@@ -132,7 +139,7 @@ local stackLayoutQueued = {}
 ---@type table<Frame, boolean>
 local stackLayoutActive = {}
 local TINT_STEPS = {5, 10, 15, 20, 25, 30, 35, 40, 45, 50}
-local SHADE_STEPS = {10, 20, 30, 40, 50, 60, 70, 80, 90}
+local SHADE_STEPS = {5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95}
 local DEFAULT_PRIMARY = CreateColorFromHexString("FF1A4A6B")
 
 ---@return LiqUI_DesignDB
@@ -241,6 +248,9 @@ end
 ---@param tokens LiqUI_DesignElement
 ---@return LiqUI_DesignBorder?
 local function resolveBorder(tokens)
+  if not tokens.background then
+    return nil
+  end
   local border = tokens.border
   if not border then
     return nil
@@ -261,16 +271,16 @@ local function roundBorderVisible(state, border)
   if not state.enabled then
     return border.color ~= nil
   end
-  if state.focused and border.focus then
+  if state.down and border.pressed then
     return true
   end
-  if state.down and border.pressed then
+  if state.selected and border.selected then
     return true
   end
   if state.over and border.hover then
     return true
   end
-  if state.selected and border.selected then
+  if state.focused and border.focus then
     return true
   end
   return border.color ~= nil
@@ -292,6 +302,17 @@ local function hasPointerState(tokens)
     return true
   end
   return false
+end
+
+---@param texture Texture
+---@param snap boolean
+local function applyTextureSnap(texture, snap)
+  if texture.SetSnapToPixelGrid then
+    texture:SetSnapToPixelGrid(snap)
+  end
+  if texture.SetTexelSnappingBias then
+    texture:SetTexelSnappingBias(0)
+  end
 end
 
 ---@param parent Frame
@@ -320,14 +341,10 @@ local function createPaintTexture(parent, layer, subLevel, round)
     else
       texture:SetTexture(WHITE8X8)
     end
-    if texture.SetSnapToPixelGrid then
-      texture:SetSnapToPixelGrid(true)
-    end
-    if texture.SetTexelSnappingBias then
-      texture:SetTexelSnappingBias(0)
-    end
+    applyTextureSnap(texture, true)
   else
     texture:SetTexture(WHITE8X8)
+    applyTextureSnap(texture, false)
   end
   return texture
 end
@@ -343,6 +360,92 @@ local function nearestInset(region, pixels)
 end
 
 ---@param element LiqUI_DesignMixin
+---@return Texture
+local function makeSquareBorderEdge(element)
+  local texture = element:CreateTexture(nil, "BACKGROUND", nil, -7)
+  texture:SetTexture(WHITE8X8)
+  applyTextureSnap(texture, false)
+  return texture
+end
+
+---@param element LiqUI_DesignMixin
+local function ensureSquareBorder(element)
+  if element.SquareBorder then
+    return
+  end
+  ---@type LiqUI_DesignSquareBorder
+  local pieces = {
+    Top = makeSquareBorderEdge(element),
+    Bottom = makeSquareBorderEdge(element),
+    Left = makeSquareBorderEdge(element),
+    Right = makeSquareBorderEdge(element),
+  }
+  element.SquareBorder = pieces
+end
+
+---@param element LiqUI_DesignMixin
+---@param size number
+local function layoutSquareBorder(element, size)
+  local pieces = element.SquareBorder
+  if not pieces then
+    return
+  end
+  SetPixelHeight(pieces.Top, size, 1)
+  pieces.Top:ClearAllPoints()
+  pieces.Top:SetPoint("TOPLEFT", element, "TOPLEFT", 0, 0)
+  pieces.Top:SetPoint("TOPRIGHT", element, "TOPRIGHT", 0, 0)
+  SetPixelHeight(pieces.Bottom, size, 1)
+  pieces.Bottom:ClearAllPoints()
+  pieces.Bottom:SetPoint("BOTTOMLEFT", element, "BOTTOMLEFT", 0, 0)
+  pieces.Bottom:SetPoint("BOTTOMRIGHT", element, "BOTTOMRIGHT", 0, 0)
+  SetPixelWidth(pieces.Left, size, 1)
+  pieces.Left:ClearAllPoints()
+  pieces.Left:SetPoint("TOPLEFT", element, "TOPLEFT", 0, 0)
+  pieces.Left:SetPoint("BOTTOMLEFT", element, "BOTTOMLEFT", 0, 0)
+  SetPixelWidth(pieces.Right, size, 1)
+  pieces.Right:ClearAllPoints()
+  pieces.Right:SetPoint("TOPRIGHT", element, "TOPRIGHT", 0, 0)
+  pieces.Right:SetPoint("BOTTOMRIGHT", element, "BOTTOMRIGHT", 0, 0)
+end
+
+---@param element LiqUI_DesignMixin
+---@param color ColorMixin
+local function paintSquareBorderColor(element, color)
+  local pieces = element.SquareBorder
+  if not pieces then
+    return
+  end
+  local red, green, blue, alpha = color:GetRGBA()
+  pieces.Top:SetVertexColor(red, green, blue, alpha)
+  pieces.Bottom:SetVertexColor(red, green, blue, alpha)
+  pieces.Left:SetVertexColor(red, green, blue, alpha)
+  pieces.Right:SetVertexColor(red, green, blue, alpha)
+end
+
+---@param element LiqUI_DesignMixin
+---@param shown boolean
+local function setSquareBorderShown(element, shown)
+  local pieces = element.SquareBorder
+  if not pieces then
+    return
+  end
+  pieces.Top:SetShown(shown)
+  pieces.Bottom:SetShown(shown)
+  pieces.Left:SetShown(shown)
+  pieces.Right:SetShown(shown)
+end
+
+---@param tokens LiqUI_DesignElement
+---@return number
+local function accentClipWidth(tokens)
+  local accent = tokens.accent
+  if not accent then
+    return 0
+  end
+  return math.max(accent.size, ROUND_SLICE)
+end
+
+---@param element LiqUI_DesignMixin
 ---@param left number
 ---@param top number
 ---@param right number
@@ -354,8 +457,8 @@ local function layoutFill(element, left, top, right, bottom)
     texture:SetAllPoints()
     return
   end
-  SetPixelPoint(texture, "TOPLEFT", element, "TOPLEFT", left, -top, 1, 1)
-  SetPixelPoint(texture, "BOTTOMRIGHT", element, "BOTTOMRIGHT", -right, bottom, 1, 1)
+  texture:SetPoint("TOPLEFT", element, "TOPLEFT", left, -top)
+  texture:SetPoint("BOTTOMRIGHT", element, "BOTTOMRIGHT", -right, bottom)
 end
 
 ---@param spec LiqUI_DesignBackground
@@ -369,11 +472,11 @@ local function fillKey(spec, state, defaultKey)
   if state.down and spec.pressed then
     return spec.pressed
   end
-  if state.over and spec.hover then
-    return spec.hover
-  end
   if state.selected and spec.selected then
     return spec.selected
+  end
+  if state.over and spec.hover then
+    return spec.hover
   end
   if state.alt and spec.alt then
     return spec.alt
@@ -469,9 +572,13 @@ end
 
 ---@param tokens LiqUI_DesignElement
 ---@param state LiqUI_DesignElementState
----@return ColorMixin
+---@return ColorMixin?
 function Design:BackgroundColor(tokens, state)
-  local key = fillKey(tokens.background, state, tokens.background.normal)
+  local spec = tokens.background
+  if not spec then
+    return nil
+  end
+  local key = fillKey(spec, state, spec.normal)
   return self.colors[key]
 end
 
@@ -491,6 +598,8 @@ function Design:TextColor(tokens, state)
     key = spec.disabled or spec.normal
   elseif state.down and spec.pressed then
     key = spec.pressed
+  elseif state.selected and spec.selected then
+    key = spec.selected
   elseif state.over and spec.hover then
     key = spec.hover
   end
@@ -499,7 +608,7 @@ end
 
 ---@param tokens LiqUI_DesignElement
 ---@param state LiqUI_DesignElementState
----@param fill ColorMixin
+---@param fill ColorMixin?
 ---@return ColorMixin?
 function Design:BorderColor(tokens, state, fill)
   local border = resolveBorder(tokens)
@@ -519,14 +628,14 @@ function Design:BorderColor(tokens, state, fill)
   if state.down and border.pressed then
     return self.colors[border.pressed]
   end
+  if state.selected and border.selected then
+    return self.colors[border.selected]
+  end
   if state.over and border.hover then
     return self.colors[border.hover]
   end
   if state.focused and border.focus then
     return self.colors[border.focus]
-  end
-  if state.selected and border.selected then
-    return self.colors[border.selected]
   end
   return color
 end
@@ -537,14 +646,19 @@ end
 function Design:PaintSquareBorder(element, fill, state)
   local border = resolveBorder(element.tokens)
   if not border or element.tokens.round then
+    setSquareBorderShown(element, false)
     return
   end
-  SetPixelBackdrop(element, border.size, false)
-  local size = nearestInset(element, border.size)
-  layoutFill(element, size, size, size, size)
+  ensureSquareBorder(element)
+  setSquareBorderShown(element, true)
+  layoutSquareBorder(element, border.size)
+  if element.Background then
+    local size = nearestInset(element, border.size)
+    layoutFill(element, size, size, size, size)
+  end
   local color = self:BorderColor(element.tokens, state, fill)
   if color then
-    element:SetBackdropBorderColor(color:GetRGBA())
+    paintSquareBorderColor(element, color)
   end
 end
 
@@ -562,13 +676,12 @@ function Design:Paint(element)
     local size = nearestInset(element, border.size)
     left, top, right, bottom = size, size, size, size
   end
-  if tokens.round and state.enabled and state.selected and tokens.accent then
-    left = math.max(left, nearestInset(element, tokens.accent.size))
-  end
-  if tokens.round then
+  if tokens.round and element.Background then
     layoutFill(element, left, top, right, bottom)
   end
-  tweenVertexColor(element.Background, fill, alpha, snap)
+  if element.Background and fill then
+    tweenVertexColor(element.Background, fill, alpha, snap)
+  end
   if element.Border then
     local borderColor = self:BorderColor(tokens, state, fill)
     if borderColor then
@@ -579,7 +692,7 @@ function Design:Paint(element)
     self:PaintSquareBorder(element, fill, state)
   end
   if element.AccentClip and tokens.accent then
-    SetPixelWidth(element.AccentClip, tokens.accent.size, 1)
+    SetPixelWidth(element.AccentClip, accentClipWidth(tokens), 1)
   end
   if element.Accent and tokens.accent then
     local accentColor = self.colors[tokens.accent.color]
@@ -630,23 +743,26 @@ function ElementMixin:Setup(tokens)
     layer = "BACKGROUND"
   end
   local round = tokens.round and true or false
-  local background = createPaintTexture(self, layer, 0, round)
-  self.Background = background
   local border = resolveBorder(tokens)
-  if round then
-    if border then
-      local borderTexture = createPaintTexture(self, layer, -1, true)
-      borderTexture:SetAllPoints()
-      self.Border = borderTexture
-    end
-    background:SetAllPoints()
-  else
-    if border then
-      SetPixelBackdrop(self, border.size, false)
-      local size = nearestInset(self, border.size)
-      layoutFill(self, size, size, size, size)
-    else
+  if tokens.background then
+    local background = createPaintTexture(self, layer, 0, round)
+    self.Background = background
+    if round then
+      if border then
+        local borderTexture = createPaintTexture(self, layer, -1, true)
+        borderTexture:SetAllPoints()
+        self.Border = borderTexture
+      end
       background:SetAllPoints()
+    else
+      if border then
+        ensureSquareBorder(self)
+        layoutSquareBorder(self, border.size)
+        local size = nearestInset(self, border.size)
+        layoutFill(self, size, size, size, size)
+      else
+        background:SetAllPoints()
+      end
     end
   end
   if tokens.accent then
@@ -655,9 +771,10 @@ function ElementMixin:Setup(tokens)
       local clip = CreateFrame("Frame", nil, self)
       clip:EnableMouse(false)
       clip:SetClipsChildren(true)
+      clip:SetFrameLevel(self:GetFrameLevel() + 1)
       SetPixelPoint(clip, "TOPLEFT", self, "TOPLEFT", 0, 0)
       SetPixelPoint(clip, "BOTTOMLEFT", self, "BOTTOMLEFT", 0, 0)
-      SetPixelWidth(clip, tokens.accent.size, 1)
+      SetPixelWidth(clip, accentClipWidth(tokens), 1)
       accent = createPaintTexture(clip, layer, 0, true)
       accent:SetAllPoints(self)
       self.AccentClip = clip
