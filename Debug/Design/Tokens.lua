@@ -164,6 +164,50 @@ local function mixChannel(from, toward, amount)
   return from + (toward - from) * amount
 end
 
+---@param channel number
+---@return number
+local function linearChannel(channel)
+  if channel <= 0.04045 then
+    return channel / 12.92
+  end
+  return ((channel + 0.055) / 1.055) ^ 2.4
+end
+
+---@param color ColorMixin
+---@return number
+local function relativeLuminance(color)
+  local red, green, blue = color:GetRGB()
+  return 0.2126 * linearChannel(red) + 0.7152 * linearChannel(green) + 0.0722 * linearChannel(blue)
+end
+
+---@param first ColorMixin
+---@param second ColorMixin
+---@return number
+local function contrastRatio(first, second)
+  local firstLuminance = relativeLuminance(first)
+  local secondLuminance = relativeLuminance(second)
+  local lighter = math.max(firstLuminance, secondLuminance)
+  local darker = math.min(firstLuminance, secondLuminance)
+  return (lighter + 0.05) / (darker + 0.05)
+end
+
+local WHITE_CONTRAST_MIN = 3
+
+---@param fill ColorMixin
+---@return ColorMixin
+local function contrastingInk(fill)
+  local white = Design.colors.white
+  local black = Design.colors.black
+  local whiteContrast = contrastRatio(white, fill)
+  if whiteContrast >= WHITE_CONTRAST_MIN then
+    return white
+  end
+  if contrastRatio(black, fill) > whiteContrast then
+    return black
+  end
+  return white
+end
+
 ---@param color ColorMixin?
 ---@return ColorMixin
 local function ensureColor(color)
@@ -584,12 +628,16 @@ end
 
 ---@param tokens LiqUI_DesignElement
 ---@param state LiqUI_DesignElementState
+---@param fill ColorMixin?
 ---@return ColorMixin
-function Design:TextColor(tokens, state)
+function Design:TextColor(tokens, state, fill)
   local spec = tokens.text
   if not spec then
     if not state.enabled then
       return self.colors.grey
+    end
+    if fill then
+      return contrastingInk(fill)
     end
     return self.colors.white
   end
@@ -602,6 +650,9 @@ function Design:TextColor(tokens, state)
     key = spec.selected
   elseif state.over and spec.hover then
     key = spec.hover
+  end
+  if state.enabled and fill and (key == "white" or key == "black") then
+    return contrastingInk(fill)
   end
   return self.colors[key]
 end
@@ -702,7 +753,7 @@ function Design:Paint(element)
     end
     tweenVertexColor(element.Accent, accentColor, accentAlpha, snap)
   end
-  local textColor = self:TextColor(tokens, state)
+  local textColor = self:TextColor(tokens, state, fill)
   local fontString = element.GetFontString and element:GetFontString()
   if fontString then
     tweenVertexColor(fontString, textColor, 1, snap)
