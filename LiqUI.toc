@@ -20,6 +20,7 @@ Debug\Types\Data.lua
 Debug\Types\EJScan.lua
 Debug\Types\Events.lua
 Debug\Types\Design.lua
+Debug\Design\Round.xml
 Debug\Design\Tokens.lua
 Debug\Design\Sandbox.lua
 Debug\Tests\Gallery.lua

@@ -5,6 +5,7 @@
 ---@class LiqUI_DesignColors
 ---@field primary ColorMixin
 ---@field white ColorMixin
+---@field grey ColorMixin
 ---@field black ColorMixin
 ---@field tint5 ColorMixin
 ---@field tint10 ColorMixin
@@ -26,10 +27,12 @@
 ---@field shade80 ColorMixin
 ---@field shade90 ColorMixin
 
----@alias LiqUI_DesignColorKey "primary"|"white"|"black"|"tint5"|"tint10"|"tint15"|"tint20"|"tint25"|"tint30"|"tint35"|"tint40"|"tint45"|"tint50"|"shade10"|"shade20"|"shade30"|"shade40"|"shade50"|"shade60"|"shade70"|"shade80"|"shade90"
+---@alias LiqUI_DesignColorKey "primary"|"white"|"grey"|"black"|"tint5"|"tint10"|"tint15"|"tint20"|"tint25"|"tint30"|"tint35"|"tint40"|"tint45"|"tint50"|"shade10"|"shade20"|"shade30"|"shade40"|"shade50"|"shade60"|"shade70"|"shade80"|"shade90"
 
 ---@class LiqUI_DesignBackground
 ---@field normal LiqUI_DesignColorKey
+---@field hover LiqUI_DesignColorKey?
+---@field pressed LiqUI_DesignColorKey?
 ---@field disabled LiqUI_DesignColorKey?
 ---@field selected LiqUI_DesignColorKey?
 ---@field alt LiqUI_DesignColorKey?
@@ -37,14 +40,21 @@
 ---@class LiqUI_DesignBorder
 ---@field size number
 ---@field color LiqUI_DesignColorKey?
+---@field hover LiqUI_DesignColorKey?
+---@field pressed LiqUI_DesignColorKey?
 ---@field focus LiqUI_DesignColorKey?
----@field highlightTint number?
+---@field disabled LiqUI_DesignColorKey?
+---@field selected LiqUI_DesignColorKey?
 
----@class LiqUI_DesignOverlay
+---@class LiqUI_DesignText
+---@field normal LiqUI_DesignColorKey
+---@field hover LiqUI_DesignColorKey?
+---@field pressed LiqUI_DesignColorKey?
+---@field disabled LiqUI_DesignColorKey?
+
+---@class LiqUI_DesignAccent
+---@field size number
 ---@field color LiqUI_DesignColorKey
----@field alpha number
-
----@alias LiqUI_DesignOverlaySpec boolean|LiqUI_DesignOverlay
 
 ---@class LiqUI_DesignElement
 ---@field width number|string?
@@ -53,10 +63,11 @@
 ---@field gap number?
 ---@field alpha number?
 ---@field textInsets number?
+---@field round boolean?
 ---@field background LiqUI_DesignBackground
 ---@field border LiqUI_DesignBorder?
----@field highlight LiqUI_DesignOverlaySpec?
----@field pushed LiqUI_DesignOverlaySpec?
+---@field text LiqUI_DesignText?
+---@field accent LiqUI_DesignAccent?
 
 ---@class LiqUI_DesignElementState
 ---@field enabled boolean
@@ -66,7 +77,7 @@
 ---@field focused boolean?
 ---@field alt boolean?
 
----@class LiqUI_DesignMixin
+---@class LiqUI_DesignMixin : Frame
 ---@field tokens LiqUI_DesignElement
 ---@field allowHighlight boolean?
 ---@field selected boolean?
@@ -75,7 +86,9 @@
 ---@field previewDown boolean?
 ---@field alt boolean?
 ---@field Background Texture
----@field Highlight Texture
+---@field Border Texture?
+---@field AccentClip Frame?
+---@field Accent Texture?
 ---@field Instructions FontString?
 ---@field cells FontString[]?
 
@@ -92,8 +105,19 @@
 
 ---@class LiqUI_DesignRecipe
 ---@field border LiqUI_DesignBorder
----@field highlight LiqUI_DesignOverlay
----@field pushed LiqUI_DesignOverlay
+---@field duration number
+
+---@class LiqUI_DesignVertexColorAnim
+---@field SetDuration fun(self: LiqUI_DesignVertexColorAnim, durationSec: number)
+---@field SetSmoothing fun(self: LiqUI_DesignVertexColorAnim, weights: string)
+---@field SetStartColor fun(self: LiqUI_DesignVertexColorAnim, color: ColorMixin)
+---@field SetEndColor fun(self: LiqUI_DesignVertexColorAnim, color: ColorMixin)
+
+---@class LiqUI_DesignColorAnim
+---@field group AnimationGroup
+---@field anim LiqUI_DesignVertexColorAnim
+---@field from ColorMixin
+---@field to ColorMixin
 
 ---@class LiqUI_Design
 ---@field colors LiqUI_DesignColors
@@ -108,7 +132,7 @@
 ---@field listeners function[]
 ---@field fontFile string
 ---@field fontFlags string
----@field borderMixColor ColorMixin?
+---@field snapPaint boolean?
 
 ---@class LiqUI_DesignLayout
 ---@field gap number
@@ -182,10 +206,17 @@
 ---@field body LiqUI_DesignSandboxElement
 ---@field overlay LiqUI_DesignSandboxElement?
 
+---@class LiqUI_DesignSandboxWindowOptions
+---@field showBorder boolean?
+---@field showOverlay boolean?
+---@field overlayAlpha number?
+---@field bodyBackground LiqUI_DesignColorKey?
+
 ---@class LiqUI_DesignTableOptions
 ---@field showBorder boolean?
 ---@field highlightRows boolean?
 ---@field highlightHeader boolean?
+---@field stripes boolean?
 
 ---@class LiqUI_DesignTableRowOptions
 ---@field highlight boolean?
@@ -216,6 +247,7 @@
 
 ---@class LiqUI_DesignSandboxWindowPage : Frame
 ---@field heading FontString
+---@field scrollBox LiqUI_ScrollBox
 
 ---@class LiqUI_DesignSandboxTablePage : Frame
 ---@field heading FontString

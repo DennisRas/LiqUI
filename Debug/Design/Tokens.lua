@@ -25,80 +25,79 @@ local Design = LiqUI.Design or {
   },
   element = {
     border = {size = 1},
-    highlight = {color = "white", alpha = 0.1},
-    pushed = {color = "black", alpha = 0.25},
+    duration = 0.12,
   },
   window = {
     width = 880,
     height = 700,
-    background = {normal = "shade80"},
-    border = {size = 1, color = "shade50"},
+    background = {normal = "shade90"},
+    border = {size = 1, color = "shade70"},
     titlebar = {
       height = 32,
       background = {normal = "shade90"},
       button = {
         width = 32,
         height = 32,
-        background = {normal = "shade90", disabled = "shade90"},
-        highlight = true,
-        pushed = true,
+        background = {normal = "shade90", hover = "shade60", pressed = "shade50", disabled = "shade90"},
+        text = {normal = "white", disabled = "grey"},
       },
     },
     menu = {
       width = 180,
-      padding = 14,
-      background = {normal = "shade80"},
+      padding = 8,
+      background = {normal = "shade90"},
       row = {
-        height = 30,
-        gap = 0,
-        background = {normal = "shade80", selected = "primary", disabled = "shade80"},
-        highlight = true,
-        pushed = true,
+        height = 36,
+        gap = 4,
+        padding = 12,
+        round = true,
+        background = {normal = "shade90", hover = "shade60", pressed = "shade50", selected = "shade80", disabled = "shade90"},
+        text = {normal = "white", disabled = "grey"},
+        accent = {size = 3, color = "primary"},
       },
     },
     body = {padding = 16, background = {normal = "shade70"}},
-    overlay = {alpha = 0.85, background = {normal = "shade90"}},
+    overlay = {alpha = 1, background = {normal = "shade90"}},
   },
   button = {
     primary = {
       height = 28,
       width = 100,
-      background = {normal = "primary", disabled = "shade80"},
-      border = {size = 2, highlightTint = 35},
-      highlight = true,
-      pushed = true,
+      round = true,
+      background = {normal = "primary", pressed = "shade20", disabled = "shade80"},
+      border = {size = 2, hover = "tint20", pressed = "tint10", disabled = "shade80"},
+      text = {normal = "white", disabled = "grey"},
     },
     secondary = {
       height = 28,
       width = 100,
-      background = {normal = "shade50", disabled = "shade80"},
-      border = {size = 2, highlightTint = 35},
-      highlight = true,
-      pushed = true,
+      round = true,
+      background = {normal = "shade70", pressed = "shade80", disabled = "shade80"},
+      border = {size = 2, hover = "tint20", pressed = "shade50", disabled = "shade80"},
+      text = {normal = "white", disabled = "grey"},
     },
   },
   input = {
     height = 28,
     textInsets = 8,
-    background = {normal = "shade80", disabled = "shade90"},
-    border = {size = 1, color = "shade50", focus = "primary"},
-    highlight = true,
+    round = true,
+    background = {normal = "shade90", hover = "shade80", disabled = "shade90"},
+    border = {size = 1, color = "shade80", hover = "tint20", focus = "primary", disabled = "shade80"},
+    text = {normal = "white", disabled = "grey"},
   },
   table = {
     background = {normal = "shade80"},
-    border = {size = 1, color = "shade50"},
+    border = {size = 1, color = "shade70"},
     cellPadding = 8,
     rowHeight = 28,
     highlightRows = false,
     highlightHeader = false,
     header = {
-      background = {normal = "shade90", disabled = "shade90"},
-      highlight = true,
+      background = {normal = "shade90", hover = "shade80", disabled = "shade90"},
     },
     row = {
-      background = {normal = "shade80", alt = "shade70", selected = "primary", disabled = "shade80"},
-      highlight = true,
-      pushed = true,
+      background = {normal = "shade80", hover = "shade60", alt = "shade70", disabled = "shade80"},
+      text = {normal = "white", disabled = "grey"},
     },
   },
 }
@@ -110,8 +109,13 @@ local SetPixelWidth = PixelUtil.SetWidth
 local SetPixelHeight = PixelUtil.SetHeight
 local SetPixelPoint = PixelUtil.SetPoint
 local WHITE8X8 = "Interface/BUTTONS/WHITE8X8"
----@type LiqUI_DesignSandboxElement[]
+local ROUND_TEXTURE = "Interface/AddOns/LiqUI/Debug/Design/Media/RoundedRect"
+local ROUND_TEMPLATE = "LiqUIDesignRoundTemplate"
+local ROUND_SLICE = 4
+---@type LiqUI_DesignMixin[]
 local painted = {}
+---@type table<Texture|FontString, LiqUI_DesignColorAnim>
+local colorAnims = {}
 local TYPE_IDS = {"h1", "h2", "h3", "title", "p", "label"}
 local DEFAULT_FONT_FILE = "Fonts\\FRIZQT__.TTF"
 local DEFAULT_FONT_FLAGS = ""
@@ -191,6 +195,8 @@ local function rebuild(r, g, b)
   colors.primary:SetRGB(r, g, b)
   colors.white = ensureColor(colors.white)
   colors.white:SetRGB(1, 1, 1)
+  colors.grey = ensureColor(colors.grey)
+  colors.grey:SetRGB(0.55, 0.55, 0.55)
   colors.black = ensureColor(colors.black)
   colors.black:SetRGB(0, 0, 0)
   rebuildSteps(colors, r, g, b, TINT_STEPS, "tint", 1, 1, 1)
@@ -232,22 +238,6 @@ function Design:GetDB()
   return getStore()
 end
 
----@param spec LiqUI_DesignOverlaySpec?
----@param recipe LiqUI_DesignOverlay
----@return LiqUI_DesignOverlay?
-local function resolveOverlay(spec, recipe)
-  if spec == nil or spec == false then
-    return nil
-  end
-  if spec == true then
-    return recipe
-  end
-  local merged = {}
-  TableMergeOptions(merged, recipe)
-  TableMergeOptions(merged, spec)
-  return merged
-end
-
 ---@param tokens LiqUI_DesignElement
 ---@return LiqUI_DesignBorder?
 local function resolveBorder(tokens)
@@ -264,16 +254,189 @@ local function resolveBorder(tokens)
   return merged
 end
 
----@param region Region
----@param texture Texture
----@param inset number
-local function insetBackground(region, texture, inset)
-  texture:ClearAllPoints()
-  SetPixelPoint(texture, "TOPLEFT", region, "TOPLEFT", inset, -inset, 1, 1)
-  SetPixelPoint(texture, "BOTTOMRIGHT", region, "BOTTOMRIGHT", -inset, inset, 1, 1)
+---@param state LiqUI_DesignElementState
+---@param border LiqUI_DesignBorder
+---@return boolean
+local function roundBorderVisible(state, border)
+  if not state.enabled then
+    return border.color ~= nil
+  end
+  if state.focused and border.focus then
+    return true
+  end
+  if state.down and border.pressed then
+    return true
+  end
+  if state.over and border.hover then
+    return true
+  end
+  if state.selected and border.selected then
+    return true
+  end
+  return border.color ~= nil
 end
 
----@param element LiqUI_DesignSandboxElement
+---@param tokens LiqUI_DesignElement
+---@return boolean
+local function hasPointerState(tokens)
+  local background = tokens.background
+  if background and (background.hover or background.pressed) then
+    return true
+  end
+  local border = tokens.border
+  if border and (border.hover or border.pressed) then
+    return true
+  end
+  local text = tokens.text
+  if text and (text.hover or text.pressed) then
+    return true
+  end
+  return false
+end
+
+---@param parent Frame
+---@param layer DrawLayer
+---@param subLevel number
+---@param round boolean
+---@return Texture
+local function createPaintTexture(parent, layer, subLevel, round)
+  local texture
+  if round then
+    local ok, created = pcall(parent.CreateTexture, parent, nil, layer, ROUND_TEMPLATE, subLevel)
+    if ok then
+      texture = created
+    end
+  end
+  if not texture then
+    texture = parent:CreateTexture(nil, layer, nil, subLevel)
+  end
+  if round then
+    local loaded = texture:SetTexture(ROUND_TEXTURE)
+    if loaded then
+      pcall(texture.SetTextureSliceMargins, texture, ROUND_SLICE, ROUND_SLICE, ROUND_SLICE, ROUND_SLICE)
+      if Enum.UITextureSliceMode then
+        pcall(texture.SetTextureSliceMode, texture, Enum.UITextureSliceMode.Stretched)
+      end
+    else
+      texture:SetTexture(WHITE8X8)
+    end
+    if texture.SetSnapToPixelGrid then
+      texture:SetSnapToPixelGrid(true)
+    end
+    if texture.SetTexelSnappingBias then
+      texture:SetTexelSnappingBias(0)
+    end
+  else
+    texture:SetTexture(WHITE8X8)
+  end
+  return texture
+end
+
+---@param region Region
+---@param pixels number
+---@return number
+local function nearestInset(region, pixels)
+  if pixels == 0 then
+    return 0
+  end
+  return PixelUtil.GetNearestPixelSize(pixels, region:GetEffectiveScale(), 1)
+end
+
+---@param element LiqUI_DesignMixin
+---@param left number
+---@param top number
+---@param right number
+---@param bottom number
+local function layoutFill(element, left, top, right, bottom)
+  local texture = element.Background
+  texture:ClearAllPoints()
+  if left == 0 and top == 0 and right == 0 and bottom == 0 then
+    texture:SetAllPoints()
+    return
+  end
+  SetPixelPoint(texture, "TOPLEFT", element, "TOPLEFT", left, -top, 1, 1)
+  SetPixelPoint(texture, "BOTTOMRIGHT", element, "BOTTOMRIGHT", -right, bottom, 1, 1)
+end
+
+---@param spec LiqUI_DesignBackground
+---@param state LiqUI_DesignElementState
+---@param defaultKey LiqUI_DesignColorKey
+---@return LiqUI_DesignColorKey
+local function fillKey(spec, state, defaultKey)
+  if not state.enabled then
+    return spec.disabled or spec.normal or defaultKey
+  end
+  if state.down and spec.pressed then
+    return spec.pressed
+  end
+  if state.over and spec.hover then
+    return spec.hover
+  end
+  if state.selected and spec.selected then
+    return spec.selected
+  end
+  if state.alt and spec.alt then
+    return spec.alt
+  end
+  return spec.normal or defaultKey
+end
+
+---@param region Texture|FontString
+---@param color ColorMixin
+---@param alpha number
+---@param snap boolean
+local function tweenVertexColor(region, color, alpha, snap)
+  local red, green, blue = color:GetRGB()
+  local handle = colorAnims[region]
+  if snap or not Design.element.duration or Design.element.duration <= 0 then
+    if handle then
+      handle.group:Stop()
+    end
+    region:SetVertexColor(red, green, blue, alpha)
+    return
+  end
+  local currentRed, currentGreen, currentBlue, currentAlpha = region:GetVertexColor()
+  if handle and handle.group:IsPlaying() then
+    handle.group:Stop()
+    region:SetVertexColor(currentRed, currentGreen, currentBlue, currentAlpha)
+  end
+  if math.abs(currentRed - red) < 0.002 and math.abs(currentGreen - green) < 0.002 and math.abs(currentBlue - blue) < 0.002 and math.abs((currentAlpha or 1) - alpha) < 0.002 then
+    region:SetVertexColor(red, green, blue, alpha)
+    return
+  end
+  if not handle then
+    local group = region:CreateAnimationGroup()
+    ---@type LiqUI_DesignVertexColorAnim
+    local anim = group:CreateAnimation("VertexColor")
+    anim:SetSmoothing("IN_OUT")
+    ---@type LiqUI_DesignColorAnim
+    local created = {
+      group = group,
+      anim = anim,
+      from = CreateColor(currentRed, currentGreen, currentBlue, currentAlpha or 1),
+      to = CreateColor(red, green, blue, alpha),
+    }
+    handle = created
+    colorAnims[region] = handle
+    group:SetScript("OnFinished", function()
+      local finished = colorAnims[region]
+      if not finished then
+        return
+      end
+      local finishedRed, finishedGreen, finishedBlue, finishedAlpha = finished.to:GetRGBA()
+      region:SetVertexColor(finishedRed, finishedGreen, finishedBlue, finishedAlpha)
+    end)
+  end
+  handle.anim:SetDuration(Design.element.duration)
+  handle.from:SetRGBA(currentRed, currentGreen, currentBlue, currentAlpha or 1)
+  handle.to:SetRGBA(red, green, blue, alpha)
+  handle.anim:SetStartColor(handle.from)
+  handle.anim:SetEndColor(handle.to)
+  handle.group:Stop()
+  handle.group:Play()
+end
+
+---@param element LiqUI_DesignMixin
 ---@return LiqUI_DesignElementState
 function Design:ElementState(element)
   local enabled = true
@@ -308,112 +471,151 @@ end
 ---@param state LiqUI_DesignElementState
 ---@return ColorMixin
 function Design:BackgroundColor(tokens, state)
-  local background = tokens.background
-  local key = background.normal
+  local key = fillKey(tokens.background, state, tokens.background.normal)
+  return self.colors[key]
+end
+
+---@param tokens LiqUI_DesignElement
+---@param state LiqUI_DesignElementState
+---@return ColorMixin
+function Design:TextColor(tokens, state)
+  local spec = tokens.text
+  if not spec then
+    if not state.enabled then
+      return self.colors.grey
+    end
+    return self.colors.white
+  end
+  local key = spec.normal
   if not state.enabled then
-    key = background.disabled or background.normal
-  elseif state.selected and background.selected then
-    key = background.selected
-  elseif state.alt and background.alt then
-    key = background.alt
+    key = spec.disabled or spec.normal
+  elseif state.down and spec.pressed then
+    key = spec.pressed
+  elseif state.over and spec.hover then
+    key = spec.hover
   end
   return self.colors[key]
 end
 
+---@param tokens LiqUI_DesignElement
+---@param state LiqUI_DesignElementState
 ---@param fill ColorMixin
----@param tint number
----@return ColorMixin
-local function mixTowardWhite(fill, tint)
-  local color = ensureColor(Design.borderMixColor)
-  local red, green, blue = fill:GetRGB()
-  local amount = tint / 100
-  color:SetRGB(mixChannel(red, 1, amount), mixChannel(green, 1, amount), mixChannel(blue, 1, amount))
-  Design.borderMixColor = color
+---@return ColorMixin?
+function Design:BorderColor(tokens, state, fill)
+  local border = resolveBorder(tokens)
+  if not border then
+    return nil
+  end
+  local color = fill
+  if border.color then
+    color = self.colors[border.color]
+  end
+  if not state.enabled then
+    if border.disabled then
+      return self.colors[border.disabled]
+    end
+    return color
+  end
+  if state.down and border.pressed then
+    return self.colors[border.pressed]
+  end
+  if state.over and border.hover then
+    return self.colors[border.hover]
+  end
+  if state.focused and border.focus then
+    return self.colors[border.focus]
+  end
+  if state.selected and border.selected then
+    return self.colors[border.selected]
+  end
   return color
 end
 
----@param element LiqUI_DesignSandboxElement
+---@param element LiqUI_DesignMixin
 ---@param fill ColorMixin
 ---@param state LiqUI_DesignElementState
-function Design:PaintBorder(element, fill, state)
+function Design:PaintSquareBorder(element, fill, state)
   local border = resolveBorder(element.tokens)
-  if not border then
+  if not border or element.tokens.round then
     return
   end
   SetPixelBackdrop(element, border.size, false)
-  insetBackground(element, element.Background, border.size)
-  insetBackground(element, element.Highlight, border.size)
-  local color = fill
-  if state.focused and border.focus then
-    color = self.colors[border.focus]
-  elseif border.color then
-    color = self.colors[border.color]
+  local size = nearestInset(element, border.size)
+  layoutFill(element, size, size, size, size)
+  local color = self:BorderColor(element.tokens, state, fill)
+  if color then
+    element:SetBackdropBorderColor(color:GetRGBA())
   end
-  if state.enabled and (state.over or state.down) and border.highlightTint then
-    color = mixTowardWhite(color, border.highlightTint)
-  end
-  element:SetBackdropBorderColor(color:GetRGBA())
 end
 
----@param element LiqUI_DesignSandboxElement
----@param fill ColorMixin
----@param tokens LiqUI_DesignElement
-function Design:PaintBackground(element, fill, tokens)
-  local alpha = tokens.alpha or 1
-  local red, green, blue = fill:GetRGB()
-  element.Background:SetVertexColor(red, green, blue, alpha)
-end
-
----@param element LiqUI_DesignSandboxElement
----@param tokens LiqUI_DesignElement
----@param state LiqUI_DesignElementState
-function Design:PaintHighlight(element, tokens, state)
-  local overlay
-  if state.enabled and state.down then
-    overlay = resolveOverlay(tokens.pushed, self.element.pushed)
-  end
-  if not overlay and state.enabled and state.over then
-    overlay = resolveOverlay(tokens.highlight, self.element.highlight)
-  end
-  if not overlay then
-    element.Highlight:SetVertexColor(1, 1, 1, 0)
-    return
-  end
-  local color = self.colors[overlay.color]
-  local red, green, blue = color:GetRGB()
-  element.Highlight:SetVertexColor(red, green, blue, overlay.alpha)
-end
-
----@param element LiqUI_DesignSandboxElement
+---@param element LiqUI_DesignMixin
 function Design:Paint(element)
   local tokens = element.tokens
   local state = self:ElementState(element)
   local fill = self:BackgroundColor(tokens, state)
-  self:PaintBackground(element, fill, tokens)
-  self:PaintHighlight(element, tokens, state)
-  self:PaintBorder(element, fill, state)
-  local textColor = self.colors.white
-  if not state.enabled then
-    textColor = self.colors.tint50
+  local snap = self.snapPaint and true or false
+  local alpha = tokens.alpha or 1
+  local left, top, right, bottom = 0, 0, 0, 0
+  local border = resolveBorder(tokens)
+  local showRoundBorder = tokens.round and element.Border and border and roundBorderVisible(state, border)
+  if showRoundBorder and border then
+    local size = nearestInset(element, border.size)
+    left, top, right, bottom = size, size, size, size
   end
+  if tokens.round and state.enabled and state.selected and tokens.accent then
+    left = math.max(left, nearestInset(element, tokens.accent.size))
+  end
+  if tokens.round then
+    layoutFill(element, left, top, right, bottom)
+  end
+  tweenVertexColor(element.Background, fill, alpha, snap)
+  if element.Border then
+    local borderColor = self:BorderColor(tokens, state, fill)
+    if borderColor then
+      local borderSnap = snap or not showRoundBorder
+      tweenVertexColor(element.Border, borderColor, alpha, borderSnap)
+    end
+  else
+    self:PaintSquareBorder(element, fill, state)
+  end
+  if element.AccentClip and tokens.accent then
+    SetPixelWidth(element.AccentClip, tokens.accent.size, 1)
+  end
+  if element.Accent and tokens.accent then
+    local accentColor = self.colors[tokens.accent.color]
+    local accentAlpha = 0
+    if state.enabled and state.selected then
+      accentAlpha = 1
+    end
+    tweenVertexColor(element.Accent, accentColor, accentAlpha, snap)
+  end
+  local textColor = self:TextColor(tokens, state)
   local fontString = element.GetFontString and element:GetFontString()
   if fontString then
-    fontString:SetTextColor(textColor:GetRGBA())
+    tweenVertexColor(fontString, textColor, 1, snap)
+  end
+  local cells = element.cells
+  if cells then
+    for index = 1, #cells do
+      tweenVertexColor(cells[index], textColor, 1, snap)
+    end
   end
   if tokens.textInsets then
     element:SetTextColor(textColor:GetRGBA())
   end
   local instructions = element.Instructions
   if instructions then
-    instructions:SetTextColor(self.colors.tint50:GetRGBA())
+    tweenVertexColor(instructions, self.colors.grey, 1, snap)
     instructions:SetShown(element:GetText() == "")
   end
 end
 
 function Design:PaintAll()
+  self.snapPaint = true
   for index = 1, #painted do
     painted[index]:Apply()
   end
+  self.snapPaint = nil
 end
 
 ---@class LiqUI_DesignMixin
@@ -427,24 +629,50 @@ function ElementMixin:Setup(tokens)
   if tokens.textInsets then
     layer = "BACKGROUND"
   end
-  local background = self:CreateTexture(nil, layer)
-  background:SetDrawLayer(layer, 0)
-  background:SetTexture(WHITE8X8)
+  local round = tokens.round and true or false
+  local background = createPaintTexture(self, layer, 0, round)
   self.Background = background
-  local highlight = self:CreateTexture(nil, "ARTWORK")
-  highlight:SetDrawLayer("ARTWORK", 1)
-  highlight:SetTexture(WHITE8X8)
-  self.Highlight = highlight
   local border = resolveBorder(tokens)
-  if border then
-    SetPixelBackdrop(self, border.size, false)
-    insetBackground(self, background, border.size)
-    insetBackground(self, highlight, border.size)
-  else
+  if round then
+    if border then
+      local borderTexture = createPaintTexture(self, layer, -1, true)
+      borderTexture:SetAllPoints()
+      self.Border = borderTexture
+    end
     background:SetAllPoints()
-    highlight:SetAllPoints()
+  else
+    if border then
+      SetPixelBackdrop(self, border.size, false)
+      local size = nearestInset(self, border.size)
+      layoutFill(self, size, size, size, size)
+    else
+      background:SetAllPoints()
+    end
   end
-  if tokens.highlight or tokens.pushed then
+  if tokens.accent then
+    local accent
+    if round then
+      local clip = CreateFrame("Frame", nil, self)
+      clip:EnableMouse(false)
+      clip:SetClipsChildren(true)
+      SetPixelPoint(clip, "TOPLEFT", self, "TOPLEFT", 0, 0)
+      SetPixelPoint(clip, "BOTTOMLEFT", self, "BOTTOMLEFT", 0, 0)
+      SetPixelWidth(clip, tokens.accent.size, 1)
+      accent = createPaintTexture(clip, layer, 0, true)
+      accent:SetAllPoints(self)
+      self.AccentClip = clip
+    else
+      accent = self:CreateTexture(nil, "ARTWORK")
+      accent:SetDrawLayer("ARTWORK", 2)
+      accent:SetTexture(WHITE8X8)
+      SetPixelPoint(accent, "TOPLEFT", self, "TOPLEFT", 0, 0)
+      SetPixelPoint(accent, "BOTTOMLEFT", self, "BOTTOMLEFT", 0, 0)
+      SetPixelWidth(accent, tokens.accent.size)
+    end
+    accent:SetVertexColor(1, 1, 1, 0)
+    self.Accent = accent
+  end
+  if hasPointerState(tokens) then
     MixFrames(self, ButtonStateBehaviorMixin)
     self:SetScript("OnEnter", self.OnEnter)
     self:SetScript("OnLeave", self.OnLeave)
@@ -460,7 +688,10 @@ function ElementMixin:Setup(tokens)
     Design:SetPadding(self, tokens.padding)
   end
   table.insert(painted, self)
+  local snap = Design.snapPaint
+  Design.snapPaint = true
   Design:Paint(self)
+  Design.snapPaint = snap
 end
 
 function ElementMixin:Apply()

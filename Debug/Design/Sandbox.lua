@@ -18,34 +18,15 @@ local SetPixelHeight = PixelUtil.SetHeight
 local WINDOW_SAMPLE_HEIGHT = 168
 ---@type number[]
 local TABLE_COLUMNS = {42, 33, 25}
-local TABLE_STRIPE_ROWS = {
+local TABLE_SAMPLE_ROWS = {
   {"Liquidor", "Tank", "2840"},
   {"Calia", "Healer", "2715"},
   {"Toren", "DPS", "3120"},
   {"Mara", "DPS", "3055"},
-  {"Bren", "Tank", "2988"},
-  {"Syla", "Healer", "2764"},
-  {"Oric", "DPS", "3210"},
-  {"Nera", "DPS", "2891"},
-  {"Kael", "Tank", "2650"},
-  {"Ryn", "Healer", "2542"},
-  {"Voss", "DPS", "3340"},
-  {"Lira", "DPS", "3012"},
-  {"Dain", "Tank", "2888"},
-  {"Pell", "Healer", "2699"},
-  {"Jace", "DPS", "3175"},
-  {"Wren", "DPS", "2920"},
-  {"Hale", "Tank", "2733"},
-  {"Mio", "Healer", "2610"},
-  {"Quinn", "DPS", "3088"},
-  {"Ash", "DPS", "2954"},
-  {"Bram", "Tank", "2801"},
-  {"Cora", "Healer", "2588"},
-  {"Ellis", "DPS", "3266"},
-  {"Faye", "DPS", "2999"},
 }
 local TINT_KEYS = {"tint5", "tint10", "tint15", "tint20", "tint25", "tint30", "tint35", "tint40", "tint45", "tint50"}
 local SHADE_KEYS = {"shade10", "shade20", "shade30", "shade40", "shade50", "shade60", "shade70", "shade80", "shade90"}
+local FIXED_KEYS = {"white", "grey", "black"}
 local LOREM_PARAGRAPH =
   "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
 local LOREM_PARAGRAPH_TWO =
@@ -132,7 +113,7 @@ end
 local function createSampleButton(parent, tokens, text, options)
   options = options or {}
   local template
-  if tokens.border then
+  if tokens.border and not tokens.round then
     template = "BackdropTemplate"
   end
   ---@class LiqUI_DesignSandboxElement
@@ -170,7 +151,7 @@ end
 ---@return LiqUI_DesignSandboxElement
 local function createSampleInput(parent, text, enabled, placeholder)
   ---@class LiqUI_DesignSandboxElement
-  local input = CreateFrame("EditBox", nil, parent, "BackdropTemplate")
+  local input = CreateFrame("EditBox", nil, parent)
   input:SetAutoFocus(false)
   local labelStyle = Design.typography.label
   local tokens = Design.input
@@ -213,19 +194,30 @@ end
 
 ---@param parent Frame
 ---@param title string
----@param showSettings boolean
----@param showOverlay boolean
+---@param options LiqUI_DesignSandboxWindowOptions?
 ---@return LiqUI_DesignSandboxWindowSample
-local function createSampleWindow(parent, title, showSettings, showOverlay)
+local function createSampleWindow(parent, title, options)
+  options = options or {}
+  local showBorder = options.showBorder
+  if showBorder == nil then
+    showBorder = true
+  end
+  local borderSize = 0
+  local template
+  ---@type LiqUI_DesignElement
+  local windowTokens = {background = Design.window.background}
+  if showBorder then
+    template = "BackdropTemplate"
+    windowTokens.border = Design.window.border
+    borderSize = Design.window.border.size
+  end
   ---@class LiqUI_DesignSandboxElement
-  local frame = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-  setupElement(frame, Design.window)
+  local frame = CreateFrame("Frame", nil, parent, template)
+  setupElement(frame, windowTokens)
   ---@type LiqUI_DesignSizeOptions
-  local windowSize = {width = "90%", height = WINDOW_SAMPLE_HEIGHT}
-  Design:SetPadding(parent, Design.window.body.padding)
+  local windowSize = {width = "100%", height = WINDOW_SAMPLE_HEIGHT}
   Design:ApplySize(frame, windowSize)
 
-  local borderSize = Design.window.border.size
   ---@class LiqUI_DesignSandboxElement
   local titlebar = CreateFrame("Frame", nil, frame)
   setupElement(titlebar, Design.window.titlebar)
@@ -240,14 +232,17 @@ local function createSampleWindow(parent, title, showSettings, showOverlay)
   local closeButton = createTitlebarButton(titlebar, "X")
   SetPixelPoint(closeButton, "RIGHT", titlebar, "RIGHT", 0, 0)
 
-  if showSettings then
-    local settingsButton = createTitlebarButton(titlebar, "S")
-    SetPixelPoint(settingsButton, "RIGHT", closeButton, "LEFT", 0, 0)
+  ---@type LiqUI_DesignElement
+  local bodyTokens = Design.window.body
+  if options.bodyBackground then
+    bodyTokens = {
+      padding = Design.window.body.padding,
+      background = {normal = options.bodyBackground},
+    }
   end
-
   ---@class LiqUI_DesignSandboxElement
   local body = CreateFrame("Frame", nil, frame)
-  setupElement(body, Design.window.body)
+  setupElement(body, bodyTokens)
   SetPixelPoint(body, "TOPLEFT", titlebar, "BOTTOMLEFT", 0, 0)
   SetPixelPoint(body, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -borderSize, borderSize, 1, 1)
 
@@ -257,16 +252,21 @@ local function createSampleWindow(parent, title, showSettings, showOverlay)
   ---@type LiqUI_DesignSizeOptions
   local bodyCopySize = {width = "100%"}
   Design:ApplySize(bodyCopy, bodyCopySize)
-  bodyCopy:SetText("Body uses shade70. Titlebar uses shade90. Border uses shade50.")
+  bodyCopy:SetText("Body copy sits in the content pane. The titlebar stays above it.")
 
   local overlay
-  if showOverlay then
+  if options.showOverlay then
+    ---@type LiqUI_DesignElement
+    local overlayTokens = {
+      background = Design.window.overlay.background,
+      alpha = options.overlayAlpha or Design.window.overlay.alpha or 1,
+    }
     ---@class LiqUI_DesignSandboxElement
-    overlay = CreateFrame("Frame", nil, frame)
+    overlay = CreateFrame("Frame", nil, body)
     overlay:EnableMouse(true)
-    setupElement(overlay, Design.window.overlay)
-    SetPixelPoint(overlay, "TOPLEFT", titlebar, "BOTTOMLEFT", 0, 0)
-    SetPixelPoint(overlay, "BOTTOMRIGHT", frame, "BOTTOMRIGHT", -borderSize, borderSize, 1, 1)
+    overlay:SetFrameLevel(body:GetFrameLevel() + 10)
+    setupElement(overlay, overlayTokens)
+    overlay:SetAllPoints()
     local overlayText = createTypeString(overlay, "h3")
     SetPixelPoint(overlayText, "CENTER", overlay, "CENTER", 0, 0)
     overlayText:SetText("Loading characters...")
@@ -280,6 +280,21 @@ local function createSampleWindow(parent, title, showSettings, showOverlay)
     overlay = overlay,
   }
   return sample
+end
+
+---@param parent Frame
+---@param yOffset number
+---@param heading string
+---@param options LiqUI_DesignSandboxWindowOptions?
+---@return number
+local function addWindowSample(parent, yOffset, heading, options)
+  local label = createTypeString(parent, "h3")
+  SetPixelPoint(label, "TOPLEFT", parent, "TOPLEFT", Design.window.body.padding, yOffset)
+  label:SetText(heading)
+  local windowY = yOffset - label:GetStringHeight() - layout.gap
+  local sample = createSampleWindow(parent, "Weekly vault", options)
+  SetPixelPoint(sample.frame, "TOPLEFT", parent, "TOPLEFT", Design.window.body.padding, windowY)
+  return windowY - WINDOW_SAMPLE_HEIGHT - layout.sectionGap
 end
 
 ---@param parent Frame
@@ -393,6 +408,40 @@ local function closeTableShell(frame, pageY, innerY, inset)
   return pageY - height
 end
 
+---@param parent Frame
+---@param yOffset number
+---@param title string
+---@param options LiqUI_DesignTableOptions
+---@return number
+local function addTableSample(parent, yOffset, title, options)
+  local label = createTypeString(parent, "h3")
+  SetPixelPoint(label, "TOPLEFT", parent, "TOPLEFT", Design.window.body.padding, yOffset)
+  label:SetText(title)
+  local tableY = yOffset - label:GetStringHeight() - layout.gap
+  local shell, innerY, inset = createTableShell(parent, tableY, options)
+  _, innerY = createTableRow(
+    shell,
+    Design.table.header,
+    {"Character", "Role", "Score"},
+    innerY,
+    tableRowOptions(options, true, inset)
+  )
+  for index = 1, #TABLE_SAMPLE_ROWS do
+    local alt
+    if options.stripes then
+      alt = index % 2 == 1
+    end
+    _, innerY = createTableRow(
+      shell,
+      Design.table.row,
+      TABLE_SAMPLE_ROWS[index],
+      innerY,
+      tableRowOptions(options, false, inset, alt)
+    )
+  end
+  return closeTableShell(shell, tableY, innerY, inset) - layout.sectionGap
+end
+
 ---@param pageId LiqUI_DesignSandboxPageId
 local function selectPage(pageId)
   if not sandbox then
@@ -435,7 +484,7 @@ local function createMenuRow(parent, text, pageId, yOffset)
   setButtonLabel(row, text)
   local label = row:GetFontString()
   label:ClearAllPoints()
-  SetPixelPoint(label, "LEFT", row, "LEFT", layout.gap, 0)
+  SetPixelPoint(label, "LEFT", row, "LEFT", tokens.padding or layout.gap, 0)
   label:SetJustifyH("LEFT")
   setupElement(row, tokens)
   row:SetScript("OnClick", function()
@@ -568,6 +617,10 @@ local function paintSandbox()
   if tableScrollBox then
     tableScrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
   end
+  local windowScrollBox = sandbox.body.windowPage.scrollBox
+  if windowScrollBox then
+    windowScrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
+  end
 end
 
 local function buildSandbox()
@@ -643,6 +696,7 @@ local function buildSandbox()
   SetPixelSize(primarySwatch, 72, 36)
 
   local yOffset = -Design.window.body.padding - 90
+  yOffset = layoutSwatchRow(colorsPage, FIXED_KEYS, Design.colors, yOffset, "Fixed")
   yOffset = layoutSwatchRow(colorsPage, TINT_KEYS, Design.colors, yOffset, "Tints  (toward white)")
   layoutSwatchRow(colorsPage, SHADE_KEYS, Design.colors, yOffset, "Shades  (toward black)")
 
@@ -652,24 +706,30 @@ local function buildSandbox()
   windowPage:SetAllPoints()
   windowPage:Hide()
 
-  local windowHeading = createTypeString(windowPage, "h1")
+  ---@type LiqUI_ScrollBoxOptions
+  local windowScrollOptions = {barWidth = layout.scrollBar}
+  local windowScrollBox = CreateScrollBox(windowPage, nil, windowScrollOptions)
+  windowPage.scrollBox = windowScrollBox
+  SetPixelPoint(windowScrollBox, "TOPLEFT", windowPage, "TOPLEFT", 0, 0)
+  SetPixelPoint(windowScrollBox, "BOTTOMRIGHT", windowPage, "BOTTOMRIGHT", -layout.scrollBar, 0)
+  local windowChild = windowScrollBox.scrollChild
+  BindScrollBoxMouseWheel(windowPage, windowScrollBox)
+  Design:SetPadding(windowChild, Design.window.body.padding)
+
+  local windowHeading = createTypeString(windowChild, "h1")
   windowPage.heading = windowHeading
-  SetPixelPoint(windowHeading, "TOPLEFT", windowPage, "TOPLEFT", Design.window.body.padding, -Design.window.body.padding)
+  SetPixelPoint(windowHeading, "TOPLEFT", windowChild, "TOPLEFT", Design.window.body.padding, -Design.window.body.padding)
   windowHeading:SetText("Window")
 
-  local defaultWindowLabel = createTypeString(windowPage, "h3")
-  SetPixelPoint(defaultWindowLabel, "TOPLEFT", windowHeading, "BOTTOMLEFT", 0, -16)
-  defaultWindowLabel:SetText("Default")
-
-  local defaultWindow = createSampleWindow(windowPage, "Weekly vault", false, false)
-  SetPixelPoint(defaultWindow.frame, "TOPLEFT", defaultWindowLabel, "BOTTOMLEFT", 0, -8)
-
-  local overlayWindowLabel = createTypeString(windowPage, "h3")
-  SetPixelPoint(overlayWindowLabel, "TOPLEFT", defaultWindow.frame, "BOTTOMLEFT", 0, -16)
-  overlayWindowLabel:SetText("Overlay")
-
-  local overlayWindow = createSampleWindow(windowPage, "Weekly vault", true, true)
-  SetPixelPoint(overlayWindow.frame, "TOPLEFT", overlayWindowLabel, "BOTTOMLEFT", 0, -8)
+  local windowY = -Design.window.body.padding - windowHeading:GetStringHeight() - layout.sectionGap
+  windowY = addWindowSample(windowChild, windowY, "Border", {showBorder = true})
+  windowY = addWindowSample(windowChild, windowY, "No border", {showBorder = false})
+  windowY = addWindowSample(windowChild, windowY, "Body shade80", {showBorder = true, bodyBackground = "shade80"})
+  windowY = addWindowSample(windowChild, windowY, "Body shade90", {showBorder = true, bodyBackground = "shade90"})
+  windowY = addWindowSample(windowChild, windowY, "Overlay", {showBorder = true, showOverlay = true})
+  windowY = addWindowSample(windowChild, windowY, "Overlay, 90%", {showBorder = true, showOverlay = true, overlayAlpha = 0.9})
+  windowChild:SetHeight(math.max(1, -windowY + Design.window.body.padding))
+  windowScrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
 
   ---@class LiqUI_DesignSandboxTablePage
   local tablePage = CreateFrame("Frame", nil, body)
@@ -692,92 +752,14 @@ local function buildSandbox()
   SetPixelPoint(tableHeading, "TOPLEFT", tableChild, "TOPLEFT", Design.window.body.padding, -Design.window.body.padding)
   tableHeading:SetText("Table")
 
-  local hoverLabel = createTypeString(tableChild, "h3")
-  SetPixelPoint(hoverLabel, "TOPLEFT", tableHeading, "BOTTOMLEFT", 0, -16)
-  hoverLabel:SetText("Hover rows")
-
-  local tableY = -Design.window.body.padding - tableHeading:GetStringHeight() - layout.sectionGap - hoverLabel:GetStringHeight() - layout.gap
-  local headerTexts = {"Character", "Role", "Score"}
-  local restTexts = {"Liquidor", "Tank", "2840"}
-  local hoverTexts = {"Calia", "Healer", "2715"}
-  local selectedTexts = {"Toren", "DPS", "3120"}
-  local selectedHoverTexts = {"Mara", "DPS", "3055"}
-  ---@type LiqUI_DesignTableOptions
-  local hoverTableOptions = {showBorder = true, highlightRows = true}
-  local hoverTable, hoverInnerY, hoverInset = createTableShell(tableChild, tableY, hoverTableOptions)
-  local tableHeader = Design.table.header
-  local tableRowStyle = Design.table.row
-  _, hoverInnerY = createTableRow(
-    hoverTable,
-    tableHeader,
-    headerTexts,
-    hoverInnerY,
-    tableRowOptions(hoverTableOptions, true, hoverInset)
-  )
-  _, hoverInnerY = createTableRow(
-    hoverTable,
-    tableRowStyle,
-    restTexts,
-    hoverInnerY,
-    tableRowOptions(hoverTableOptions, false, hoverInset)
-  )
-  local hoverRow
-  hoverRow, hoverInnerY = createTableRow(
-    hoverTable,
-    tableRowStyle,
-    hoverTexts,
-    hoverInnerY,
-    tableRowOptions(hoverTableOptions, false, hoverInset)
-  )
-  hoverRow.previewOver = true
-  hoverRow:Apply()
-  local selectedRow
-  selectedRow, hoverInnerY = createTableRow(
-    hoverTable,
-    tableRowStyle,
-    selectedTexts,
-    hoverInnerY,
-    tableRowOptions(hoverTableOptions, false, hoverInset)
-  )
-  selectedRow.selected = true
-  selectedRow:Apply()
-  local selectedHoverRow
-  selectedHoverRow, hoverInnerY = createTableRow(
-    hoverTable,
-    tableRowStyle,
-    selectedHoverTexts,
-    hoverInnerY,
-    tableRowOptions(hoverTableOptions, false, hoverInset)
-  )
-  selectedHoverRow.selected = true
-  selectedHoverRow.previewOver = true
-  selectedHoverRow:Apply()
-  tableY = closeTableShell(hoverTable, tableY, hoverInnerY, hoverInset)
-
-  local stripeLabel = createTypeString(tableChild, "h3")
-  SetPixelPoint(stripeLabel, "TOPLEFT", tableChild, "TOPLEFT", Design.window.body.padding, tableY - layout.sectionGap)
-  stripeLabel:SetText("No hover")
-  tableY = tableY - layout.sectionGap - stripeLabel:GetStringHeight() - layout.gap
-  ---@type LiqUI_DesignTableOptions
-  local restTableOptions = {showBorder = true, highlightRows = false}
-  local restTable, restInnerY, restInset = createTableShell(tableChild, tableY, restTableOptions)
-  _, restInnerY = createTableRow(
-    restTable,
-    tableHeader,
-    headerTexts,
-    restInnerY,
-    tableRowOptions(restTableOptions, true, restInset)
-  )
-  for index = 1, #TABLE_STRIPE_ROWS do
-    _, restInnerY = createTableRow(
-      restTable,
-      tableRowStyle,
-      TABLE_STRIPE_ROWS[index],
-      restInnerY,
-      tableRowOptions(restTableOptions, false, restInset, index % 2 == 1)
-    )
-  end
-  tableY = closeTableShell(restTable, tableY, restInnerY, restInset)
+  local tableY = -Design.window.body.padding - tableHeading:GetStringHeight() - layout.sectionGap
+  tableY = addTableSample(tableChild, tableY, "Border", {showBorder = true})
+  tableY = addTableSample(tableChild, tableY, "Stripes", {showBorder = false, stripes = true})
+  tableY = addTableSample(tableChild, tableY, "Hover", {showBorder = false, highlightRows = true})
+  tableY = addTableSample(tableChild, tableY, "Border, stripes", {showBorder = true, stripes = true})
+  tableY = addTableSample(tableChild, tableY, "Border, hover", {showBorder = true, highlightRows = true})
+  tableY = addTableSample(tableChild, tableY, "Stripes, hover", {showBorder = false, stripes = true, highlightRows = true})
+  tableY = addTableSample(tableChild, tableY, "Border, stripes, hover", {showBorder = true, stripes = true, highlightRows = true})
   tableChild:SetHeight(math.max(1, -tableY + Design.window.body.padding))
   tableScrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
 
