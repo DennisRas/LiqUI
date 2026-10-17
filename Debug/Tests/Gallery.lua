@@ -120,6 +120,7 @@ local function ensureGallery()
         id = "name",
         headerText = "Name",
         width = 180,
+        minWidth = 80,
         sorting = {
           enabled = true,
           compare = function(rowA, rowB)
@@ -131,6 +132,7 @@ local function ensureGallery()
         id = "value",
         headerText = "Value",
         width = 80,
+        minWidth = 50,
         sorting = {
           enabled = true,
           compare = function(rowA, rowB)
@@ -142,6 +144,7 @@ local function ensureGallery()
         id = "flag",
         headerText = "Flag",
         width = 60,
+        minWidth = 50,
         sorting = {
           enabled = true,
           compare = function(rowA, rowB)
@@ -156,6 +159,10 @@ local function ensureGallery()
     header = {
       enabled = true,
       sticky = true,
+      resizable = true,
+    },
+    scroll = {
+      horizontal = true,
     },
     sorting = {
       enabled = true,
