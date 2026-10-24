@@ -1,3 +1,4 @@
+---@class LiqUI
 local LiqUI = LibStub and LibStub("LiqUI-1.0", true)
 if not LiqUI then
   return
@@ -33,6 +34,42 @@ local function sortCellValue(row, columnIndex)
   return cell or ""
 end
 
+---@param left LiqUI_TableDataValue
+---@param right LiqUI_TableDataValue
+---@return boolean
+local function valueLessThan(left, right)
+  if type(left) == "number" and type(right) == "number" then
+    return left < right
+  end
+  return tostring(left) < tostring(right)
+end
+
+---@param rowA LiqUI_TableDataRowExtended
+---@param rowB LiqUI_TableDataRowExtended
+---@return boolean
+local function compareGalleryName(rowA, rowB)
+  return valueLessThan(sortCellValue(rowA, 1), sortCellValue(rowB, 1))
+end
+
+---@param rowA LiqUI_TableDataRowExtended
+---@param rowB LiqUI_TableDataRowExtended
+---@return boolean
+local function compareGalleryValue(rowA, rowB)
+  return valueLessThan(sortCellValue(rowA, 2), sortCellValue(rowB, 2))
+end
+
+---@param rowA LiqUI_TableDataRowExtended
+---@param rowB LiqUI_TableDataRowExtended
+---@return boolean
+local function compareGalleryFlag(rowA, rowB)
+  local flagA = sortCellValue(rowA, 3)
+  local flagB = sortCellValue(rowB, 3)
+  if flagA ~= flagB then
+    return flagA == "Yes"
+  end
+  return valueLessThan(sortCellValue(rowA, 1), sortCellValue(rowB, 1))
+end
+
 ---@return LiqUI_TableData
 local function galleryData()
   ---@type LiqUI_TableData
@@ -40,6 +77,12 @@ local function galleryData()
   for index = 1, 40 do
     local flag = index % 3 == 0 and "Yes" or "No"
     if index % 5 == 0 then
+      ---@param cellFrame LiqUI_TableCellFrame
+      local function showGalleryCellTooltip(cellFrame)
+        GameTooltip:SetOwner(cellFrame, "ANCHOR_RIGHT")
+        GameTooltip:SetText(format("Extended cell on row %d", index), 1, 1, 1)
+        GameTooltip:Show()
+      end
       ---@type LiqUI_TableDataRowExtended
       local row = {
         data = {
@@ -47,14 +90,8 @@ local function galleryData()
           index * 10,
           {
             data = flag,
-            onEnter = function(cellFrame, rowFrame, rowIndex, columnIndex, columnId, rowData, cellData)
-              GameTooltip:SetOwner(cellFrame, "ANCHOR_RIGHT")
-              GameTooltip:SetText(format("Extended cell on row %d", index), 1, 1, 1)
-              GameTooltip:Show()
-            end,
-            onLeave = function(cellFrame, rowFrame, rowIndex, columnIndex, columnId, rowData, cellData)
-              GameTooltip:Hide()
-            end,
+            onEnter = showGalleryCellTooltip,
+            onLeave = GameTooltip_Hide,
           },
         },
         backgroundColor = { r = 0.2, g = 0.4, b = 0.6, a = 0.25 },
@@ -81,6 +118,18 @@ local function ensureGallery()
   local tableStorage = db.tables.Gallery or { hiddenColumns = {} }
   db.tables.Gallery = tableStorage
 
+  local function toggleGalleryProgress()
+    if not galleryWindow then
+      return
+    end
+    progressVisible = not progressVisible
+    if progressVisible then
+      galleryWindow:ShowOverlay("Loading sample data...", 0.65)
+    else
+      galleryWindow:HideOverlay()
+    end
+  end
+
   ---@type LiqUI_WindowOptions
   local windowOptions = {
     name = "LiqUIGallery",
@@ -94,17 +143,7 @@ local function ensureGallery()
         icon = "Interface/ICONS/INV_Misc_Gear_01",
         tooltipTitle = "Toggle progress overlay",
         tooltipDescription = "Demonstrates ShowOverlay / HideOverlay.",
-        onClick = function()
-          if not galleryWindow then
-            return
-          end
-          progressVisible = not progressVisible
-          if progressVisible then
-            galleryWindow:ShowOverlay("Loading sample data...", 0.65)
-          else
-            galleryWindow:HideOverlay()
-          end
-        end,
+        onClick = toggleGalleryProgress,
       },
     },
   }
@@ -122,9 +161,7 @@ local function ensureGallery()
         width = 180,
         sorting = {
           enabled = true,
-          compare = function(rowA, rowB)
-            return sortCellValue(rowA, 1) < sortCellValue(rowB, 1)
-          end,
+          compare = compareGalleryName,
         },
       },
       {
@@ -133,9 +170,7 @@ local function ensureGallery()
         width = 80,
         sorting = {
           enabled = true,
-          compare = function(rowA, rowB)
-            return sortCellValue(rowA, 2) < sortCellValue(rowB, 2)
-          end,
+          compare = compareGalleryValue,
         },
       },
       {
@@ -144,12 +179,7 @@ local function ensureGallery()
         width = 60,
         sorting = {
           enabled = true,
-          compare = function(rowA, rowB)
-            if sortCellValue(rowA, 3) ~= sortCellValue(rowB, 3) then
-              return sortCellValue(rowA, 3) == "Yes"
-            end
-            return sortCellValue(rowA, 1) < sortCellValue(rowB, 1)
-          end,
+          compare = compareGalleryFlag,
         },
       },
     },
@@ -160,9 +190,7 @@ local function ensureGallery()
     sorting = {
       enabled = true,
       defaultOrder = "asc",
-      defaultCompare = function(rowA, rowB)
-        return sortCellValue(rowA, 1) < sortCellValue(rowB, 1)
-      end,
+      defaultCompare = compareGalleryName,
     },
   }
 

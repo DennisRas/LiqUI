@@ -14,15 +14,15 @@
 ---@field padding number?
 ---@field maxWidth number?
 ---@field enabled boolean?
----@field backgroundColor ColorTable?
----@field backgroundColorHover ColorTable?
----@field backgroundColorPressed ColorTable?
----@field backgroundColorDisabled ColorTable?
----@field borderColor ColorTable?
----@field borderColorHighlight ColorTable?
----@field borderColorDisabled ColorTable?
----@field textColor ColorTable?
----@field textColorDisabled ColorTable?
+---@field backgroundColor ColorRGBAData?
+---@field backgroundColorHover ColorRGBAData?
+---@field backgroundColorPressed ColorRGBAData?
+---@field backgroundColorDisabled ColorRGBAData?
+---@field borderColor ColorRGBAData?
+---@field borderColorHighlight ColorRGBAData?
+---@field borderColorDisabled ColorRGBAData?
+---@field textColor ColorRGBAData?
+---@field textColorDisabled ColorRGBAData?
 ---@field onClick function?
 
 ---@class LiqUI_ButtonResolvedOptions
@@ -34,13 +34,13 @@
 ---@field padding number
 ---@field maxWidth number?
 ---@field enabled boolean
----@field backgroundColor ColorTable
----@field backgroundColorHover ColorTable
----@field backgroundColorPressed ColorTable
----@field backgroundColorDisabled ColorTable
----@field borderColor ColorTable
----@field borderColorHighlight ColorTable
----@field borderColorDisabled ColorTable
----@field textColor ColorTable
----@field textColorDisabled ColorTable
+---@field backgroundColor ColorRGBAData
+---@field backgroundColorHover ColorRGBAData
+---@field backgroundColorPressed ColorRGBAData
+---@field backgroundColorDisabled ColorRGBAData
+---@field borderColor ColorRGBAData
+---@field borderColorHighlight ColorRGBAData
+---@field borderColorDisabled ColorRGBAData
+---@field textColor ColorRGBAData
+---@field textColorDisabled ColorRGBAData
 ---@field onClick function?

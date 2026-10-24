@@ -23,7 +23,7 @@ local function bindTableMouseWheel(frame, scrollArea)
   BindScrollBoxMouseWheel(frame, wheelScrollBox)
 end
 
----@param value table
+---@param value table<string|integer, string|number|boolean|table|function|nil>
 ---@return boolean
 local function isExtendedTable(value)
   if type(value) ~= "table" then
@@ -49,38 +49,49 @@ local function normalizeCell(cellValue)
   if not isExtendedTable(cellValue) then
     return { data = cellValue }
   end
-  ---@type LiqUI_TableDataCellExtended
-  local normalized = { data = cellValue.data }
-  for key, value in pairs(cellValue) do
-    if type(key) == "string" and key ~= "data" then
-      normalized[key] = value
-    end
+  return {
+    data = cellValue.data,
+    backgroundColor = cellValue.backgroundColor,
+    onEnter = cellValue.onEnter,
+    onLeave = cellValue.onLeave,
+    onClick = cellValue.onClick,
+  }
+end
+
+---@param cells LiqUI_TableDataCellValue[]
+---@return LiqUI_TableDataRowExtended
+local function normalizeArrayRow(cells)
+  ---@type LiqUI_TableDataRowExtended
+  local normalized = { data = {} }
+  for columnIndex, cellValue in ipairs(cells) do
+    normalized.data[columnIndex] = normalizeCell(cellValue)
   end
+  return normalized
+end
+
+---@param row LiqUI_TableDataRowExtended
+---@return LiqUI_TableDataRowExtended
+local function normalizeExtendedRow(row)
+  local normalized = normalizeArrayRow(row.data or {})
+  normalized.height = row.height
+  normalized.backgroundColor = row.backgroundColor
+  normalized.onEnter = row.onEnter
+  normalized.onLeave = row.onLeave
+  normalized.onClick = row.onClick
   return normalized
 end
 
 ---@param row LiqUI_TableDataRow
 ---@return LiqUI_TableDataRowExtended
 local function normalizeRow(row)
-  local cells
-  ---@type LiqUI_TableDataRowExtended
-  local normalized = { data = {} }
-
   if isExtendedTable(row) then
-    cells = row.data or {}
-    for key, value in pairs(row) do
-      if type(key) == "string" and key ~= "data" then
-        normalized[key] = value
-      end
-    end
-  else
-    cells = row
+    ---@type LiqUI_TableDataRowExtended
+    local extended = row
+    return normalizeExtendedRow(extended)
   end
-
-  for columnIndex, cellValue in ipairs(cells) do
-    normalized.data[columnIndex] = normalizeCell(cellValue)
-  end
-  return normalized
+  ---@type LiqUI_TableDataCellValue[]
+  local cells = row
+  return normalizeArrayRow(cells)
 end
 
 ---@param data LiqUI_TableData
@@ -181,9 +192,11 @@ local function createTable(options)
       sorting.savedState = tableDb.sortState
     end
     if not sorting.onStateChanged then
-      sorting.onStateChanged = function(state)
+      ---@param state LiqUI_TableSortState
+      local function saveSortState(state)
         tableDb.sortState = state
       end
+      sorting.onStateChanged = saveSortState
     end
   end
 

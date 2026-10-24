@@ -55,7 +55,7 @@ end
 ---@generic K, V
 ---@param tbl table<K, V>
 ---@param key string
----@param val any
+---@param val string|number|boolean|nil
 ---@return V|nil, K|nil
 function Utils.TableGet(tbl, key, val)
   return Utils.TableFind(tbl, function(elm, _)
@@ -224,8 +224,36 @@ function Highlight:HideHighlight()
   self.Highlight:Hide()
 end
 
+---@param red number|ColorRGBAData|nil
+---@param green number|nil
+---@param blue number|nil
+---@param alpha number|nil
+---@param defaultRed number
+---@param defaultGreen number
+---@param defaultBlue number
+---@param defaultAlpha number
+---@return number, number, number, number
+local function resolveColorChannels(red, green, blue, alpha, defaultRed, defaultGreen, defaultBlue, defaultAlpha)
+  if type(red) == "table" then
+    return red.r, red.g, red.b, red.a
+  end
+  if red == nil then
+    red = defaultRed
+  end
+  if green == nil then
+    green = defaultGreen
+  end
+  if blue == nil then
+    blue = defaultBlue
+  end
+  if alpha == nil then
+    alpha = defaultAlpha
+  end
+  return red, green, blue, alpha
+end
+
 ---@param parent Frame
----@param r number|ColorTable?
+---@param r number|ColorRGBAData?
 ---@param g number?
 ---@param b number?
 ---@param a number?
@@ -236,20 +264,12 @@ function Utils.SetBackgroundColor(parent, r, g, b, a)
     parent.Background:SetAllPoints()
   end
 
-  if type(r) == "table" then
-    r, g, b, a = r.r, r.g, r.b, r.a
-  end
-
-  r = r or 0
-  g = g or 0
-  b = b or 0
-  a = a or 0.1
-
-  parent.Background:SetVertexColor(r, g, b, a)
+  local red, green, blue, alpha = resolveColorChannels(r, g, b, a, 0, 0, 0, 0.1)
+  parent.Background:SetVertexColor(red, green, blue, alpha)
 end
 
 ---@param parent Frame
----@param r number|ColorTable?
+---@param r number|ColorRGBAData?
 ---@param g number?
 ---@param b number?
 ---@param a number?
@@ -260,23 +280,8 @@ function Utils.SetHighlightColor(parent, r, g, b, a)
     parent.Highlight:SetAllPoints()
   end
 
-  if type(r) == "table" then
-    r, g, b, a = r.r, r.g, r.b, r.a
-  end
-
-  if r == nil then
-    r = 1
-  end
-  if g == nil then
-    g = 1
-  end
-  if b == nil then
-    b = 1
-  end
-  if a == nil then
-    a = 0.05
-  end
-  parent.Highlight:SetVertexColor(r, g, b, a)
+  local red, green, blue, alpha = resolveColorChannels(r, g, b, a, 1, 1, 1, 0.05)
+  parent.Highlight:SetVertexColor(red, green, blue, alpha)
 end
 
 ---@generic T
@@ -455,14 +460,18 @@ end
 ---@param frame Frame
 ---@param scrollBox WowScrollBox
 function Utils.BindScrollBoxMouseWheel(frame, scrollBox)
-  frame:EnableMouseWheel(true)
-  frame:SetScript("OnMouseWheel", function(_, delta)
+  ---@param _ Frame
+  ---@param delta number
+  local function onScrollBoxMouseWheel(_, delta)
     if delta < 0 then
       scrollBox:ScrollIncrease(1)
     else
       scrollBox:ScrollDecrease(1)
     end
-  end)
+  end
+
+  frame:EnableMouseWheel(true)
+  frame:SetScript("OnMouseWheel", onScrollBoxMouseWheel)
 end
 
 ---@param scrollBox WowScrollBox
@@ -665,7 +674,6 @@ function Utils.CreateScrollArea(parent, options)
     LiqUI.Constants.layout.sizes.scrollbar.horizontalWheelPanExtent
   local wheelPanExtent = (options and options.wheelPanExtent) or defaultPanExtent
 
-  ---@class LiqUI_ScrollArea
   local scrollArea = {
     container = containerFrame,
     content = contentFrame,
@@ -687,19 +695,19 @@ function Utils.CreateScrollArea(parent, options)
   end
 
   function scrollArea:SetParent(...)
-    return self.container:SetParent(...)
+    self.container:SetParent(...)
   end
 
   function scrollArea:SetPoint(...)
-    return self.container:SetPoint(...)
+    self.container:SetPoint(...)
   end
 
   function scrollArea:SetAllPoints(...)
-    return self.container:SetAllPoints(...)
+    self.container:SetAllPoints(...)
   end
 
   function scrollArea:ClearAllPoints()
-    return self.container:ClearAllPoints()
+    self.container:ClearAllPoints()
   end
 
   function scrollArea:HookScript(...)
@@ -714,6 +722,8 @@ function Utils.CreateScrollArea(parent, options)
     return self.container:GetHeight()
   end
 
+  ---@param contentWidth number?
+  ---@param contentHeight number?
   function scrollArea:UpdateLayout(contentWidth, contentHeight)
     updateScrollAreaLayout(self, contentWidth, contentHeight)
   end
@@ -776,6 +786,7 @@ function Utils.CreateScrollingEditBox(parent, bodyPadding)
   Utils.StyleVerticalScrollBar(scrollBar)
   scrollBar:SetHideIfUnscrollable(true)
 
+  ---@type WowScrollBox
   local scrollBox = textBox:GetScrollBox()
   ScrollUtil.RegisterScrollBoxWithScrollBar(scrollBox, scrollBar)
 

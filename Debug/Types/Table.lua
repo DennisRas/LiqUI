@@ -8,7 +8,7 @@
 
 ---@class LiqUI_TableDataCellExtended
 ---@field data LiqUI_TableDataValue|nil
----@field backgroundColor ColorTable|nil
+---@field backgroundColor ColorRGBAData|nil
 ---@field onEnter LiqUI_TableCellHandler|nil
 ---@field onLeave LiqUI_TableCellHandler|nil
 ---@field onClick LiqUI_TableCellClickHandler|nil
@@ -18,7 +18,7 @@
 ---@class LiqUI_TableDataRowExtended
 ---@field data LiqUI_TableDataCellValue[]
 ---@field height number|nil
----@field backgroundColor ColorTable|nil
+---@field backgroundColor ColorRGBAData|nil
 ---@field onEnter LiqUI_TableCellHandler|nil
 ---@field onLeave LiqUI_TableCellHandler|nil
 ---@field onClick LiqUI_TableCellClickHandler|nil

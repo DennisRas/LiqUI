@@ -1,6 +1,5 @@
 ---@alias LiqUI_EJScanEventName "start" | "encounter" | "loading" | "complete" | "ready" | "current" | "cleared" | "cancelled"
 ---@alias LiqUI_EJScanInstanceType "raid" | "dungeon"
----@alias LiqUI_EJScanItemStats table<string, number>
 
 ---@class LiqUI_EJScanCache
 ---@field seasonID number
@@ -25,12 +24,15 @@
 ---@field instanceType LiqUI_EJScanInstanceType
 ---@field journalEncounterIDs table<number, boolean>
 ---@field specs table<number, boolean>
----@field stats LiqUI_EJScanItemStats
+---@field stats table<string, number>
 ---@field loaded boolean|nil
 
 ---@class LiqUI_EJScanClassSpec
 ---@field classID number
 ---@field specID number
+
+---@class LiqUI_EJScanEncounterInfo : EncounterJournalEncounterFrameInfo
+---@field tab number?
 
 ---@class LiqUI_EJScanInstance
 ---@field instance LiqUI_Dungeon|LiqUI_Raid

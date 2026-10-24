@@ -1,5 +1,12 @@
 ---@alias LiqUI_MenuGenerator fun(ownerRegion: Region, rootMenu: RootMenuDescriptionProxy, ...)
 
+---@class LiqUI_ColorPickerInfo : ColorRGBAData
+---@field opacity number?
+---@field hasOpacity number?
+---@field swatchFunc fun()?
+---@field opacityFunc fun()?
+---@field cancelFunc fun(previousColor: ColorRGBAData)?
+
 ---@class LiqUI_WindowTitlebarButton
 ---@field name string
 ---@field icon string
@@ -50,8 +57,8 @@
 ---@field GetTitlebarButton fun(self: LiqUI_WindowInstance, buttonName: string): Frame?
 ---@field GetWindowScale fun(self: LiqUI_WindowInstance): number
 ---@field SetWindowScale fun(self: LiqUI_WindowInstance, scalePercent: number)
----@field GetWindowColor fun(self: LiqUI_WindowInstance): ColorTable?
----@field SetWindowColor fun(self: LiqUI_WindowInstance, color: ColorTable)
+---@field GetWindowColor fun(self: LiqUI_WindowInstance): ColorRGBAData?
+---@field SetWindowColor fun(self: LiqUI_WindowInstance, color: ColorRGBAData)
 ---@field GetBorderShown fun(self: LiqUI_WindowInstance): boolean
 ---@field SetBorderShown fun(self: LiqUI_WindowInstance, shown: boolean)
 ---@field ApplySettings fun(self: LiqUI_WindowInstance)
@@ -67,13 +74,13 @@
 ---@class LiqUI_WindowDB
 ---@field point LiqUI_WindowPointPersisted?
 ---@field scale number?
----@field windowColor ColorTable?
+---@field windowColor ColorRGBAData?
 ---@field border boolean?
 
 ---@class LiqUI_WindowOverlayOptions
 ---@field fontObject string?
----@field textColor ColorTable?
----@field backgroundColor ColorTable?
+---@field textColor ColorRGBAData?
+---@field backgroundColor ColorRGBAData?
 
 ---@class LiqUI_WindowOptions : LiqUI_NewElementOptions
 ---@field parent Frame?
@@ -85,10 +92,10 @@
 ---@field titlebar boolean?
 ---@field border number?
 ---@field windowScale number?
----@field windowColor ColorTable?
+---@field windowColor ColorRGBAData?
 ---@field overlayFontObject string?
----@field overlayTextColor ColorTable?
----@field overlayBackgroundColor ColorTable?
+---@field overlayTextColor ColorRGBAData?
+---@field overlayBackgroundColor ColorRGBAData?
 ---@field titlebarButtons LiqUI_WindowTitlebarButton[]?
 ---@field onSettingsMenu fun(window: LiqUI_WindowInstance, rootMenu: RootMenuDescriptionProxy)?
 ---@field onClose fun(window: LiqUI_WindowInstance)?

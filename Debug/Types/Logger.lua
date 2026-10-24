@@ -1,3 +1,6 @@
+---@class LiqUI_LogEditBox : EditBox
+---@field logText string
+
 ---@class LiqUI_LoggerDB
 ---@field autoScroll boolean
 ---@field autoShow boolean
