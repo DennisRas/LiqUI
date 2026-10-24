@@ -37,6 +37,26 @@ local function isExtendedTable(value)
   return false
 end
 
+---@param source LiqUI_TableDataCellExtended
+---@param target LiqUI_TableDataCellExtended
+local function copyCellFields(source, target)
+  TableForEach(source, function(value, key)
+    if type(key) == "string" and key ~= "data" then
+      target[key] = value
+    end
+  end)
+end
+
+---@param source LiqUI_TableDataRowExtended
+---@param target LiqUI_TableDataRowExtended
+local function copyRowFields(source, target)
+  TableForEach(source, function(value, key)
+    if type(key) == "string" and key ~= "data" then
+      target[key] = value
+    end
+  end)
+end
+
 ---@param cellValue LiqUI_TableDataCellValue|nil
 ---@return LiqUI_TableDataCellExtended
 local function normalizeCell(cellValue)
@@ -49,13 +69,12 @@ local function normalizeCell(cellValue)
   if not isExtendedTable(cellValue) then
     return { data = cellValue }
   end
-  return {
-    data = cellValue.data,
-    backgroundColor = cellValue.backgroundColor,
-    onEnter = cellValue.onEnter,
-    onLeave = cellValue.onLeave,
-    onClick = cellValue.onClick,
-  }
+  ---@type LiqUI_TableDataCellExtended
+  local cell = cellValue
+  ---@type LiqUI_TableDataCellExtended
+  local normalized = { data = cell.data }
+  copyCellFields(cell, normalized)
+  return normalized
 end
 
 ---@param cells LiqUI_TableDataCellValue[]
@@ -73,11 +92,7 @@ end
 ---@return LiqUI_TableDataRowExtended
 local function normalizeExtendedRow(row)
   local normalized = normalizeArrayRow(row.data or {})
-  normalized.height = row.height
-  normalized.backgroundColor = row.backgroundColor
-  normalized.onEnter = row.onEnter
-  normalized.onLeave = row.onLeave
-  normalized.onClick = row.onClick
+  copyRowFields(row, normalized)
   return normalized
 end
 
