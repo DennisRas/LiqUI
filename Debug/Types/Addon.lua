@@ -21,6 +21,9 @@
 ---@field name string
 ---@field title string
 
+---@class LiqUI_NewElementOptions
+---@field name string
+
 ---@class LiqUI
 ---@field Utils LiqUI_Utils
 ---@field Mixins LiqUI_Mixins
@@ -29,8 +32,8 @@
 ---@field Events LiqUI_Events
 ---@field Data LiqUI_Data
 ---@field EJScan LiqUI_EJScan
----@field elements table<string, fun(options: table): any>
----@field created table<string, table<string, any>>
+---@field elements table<string, fun(options: LiqUI_NewElementOptions): table>
+---@field created table<string, table<string, table>>
 ---@field registeredAddons table<string, LiqUI_RegisteredAddon>
 ---@field minor number
 

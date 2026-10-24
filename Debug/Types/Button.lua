@@ -6,9 +6,8 @@
 ---@field Text FontString
 ---@field isPressed boolean?
 
----@class LiqUI_ButtonOptions
+---@class LiqUI_ButtonOptions : LiqUI_NewElementOptions
 ---@field parent Frame?
----@field name string
 ---@field text string?
 ---@field width number?
 ---@field height number?
