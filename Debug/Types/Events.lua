@@ -6,13 +6,15 @@
 ---@class LiqUI_EventHandlerEntry
 ---@field fn LiqUI_EventCallback
 ---@field runsImmediately boolean
+---@field unit string?
 
 ---@class LiqUI_EventBucketPending
 ---@field timer FunctionContainer?
+---@field event string
 ---@field packedVarargs LiqUI_EventPackedVarargs
 
 ---@class LiqUI_EventRuntime
----@field pendingByEventName table<string, LiqUI_EventBucketPending>
+---@field pendingByCallback table<LiqUI_EventCallback, LiqUI_EventBucketPending>
 
 ---@class LiqUI_Events
 ---@field handlers table<string, LiqUI_EventHandlerEntry[]>
