@@ -12,16 +12,8 @@ LiqUI.Events = LiqUI.Events or {
 
 ---@class LiqUI_Events
 local Events = LiqUI.Events
-local BUCKET_INTERVAL_SEC = 2
 
----@param packed LiqUI_EventPackedVarargs
----@return any ...
-local function unpackEventVarargs(packed)
-  if not packed or (packed.n or 0) == 0 then
-    return
-  end
-  return unpack(packed, 1, packed.n)
-end
+local BUCKET_INTERVAL_SEC = 2
 
 Events.frame:SetScript("OnEvent", function(frame, event, ...)
   local list = Events.handlers[event]
@@ -39,7 +31,7 @@ Events.frame:SetScript("OnEvent", function(frame, event, ...)
   for handlerIndex = 1, #list do
     local entry = list[handlerIndex]
     if entry.runsImmediately then
-      entry.fn(frame, event, unpackEventVarargs(packedVarargs))
+      entry.fn(frame, event, unpack(packedVarargs, 1, packedVarargs.n))
     end
   end
 
@@ -71,7 +63,7 @@ Events.frame:SetScript("OnEvent", function(frame, event, ...)
       for currentIndex = 1, #currentList do
         local entry = currentList[currentIndex]
         if not entry.runsImmediately then
-          entry.fn(frame, event, unpackEventVarargs(snapshot))
+          entry.fn(frame, event, unpack(snapshot, 1, snapshot.n))
         end
       end
     end)
@@ -85,8 +77,8 @@ end)
 ---@param runsImmediately boolean|nil
 function Events:RegisterEvent(event, callback, runsImmediately)
   if type(event) == "table" then
-    for eventIndex = 1, #event do
-      self:RegisterEvent(event[eventIndex], callback, runsImmediately)
+    for _, eventName in ipairs(event) do
+      self:RegisterEvent(eventName, callback, runsImmediately)
     end
     return
   end
@@ -105,8 +97,8 @@ end
 ---@param callback LiqUI_EventCallback|nil
 function Events:UnregisterEvent(event, callback)
   if type(event) == "table" then
-    for eventIndex = 1, #event do
-      self:UnregisterEvent(event[eventIndex], callback)
+    for _, eventName in ipairs(event) do
+      self:UnregisterEvent(eventName, callback)
     end
     return
   end

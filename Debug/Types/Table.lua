@@ -66,8 +66,7 @@
 ---@field savedState LiqUI_TableSortState?
 ---@field onStateChanged fun(state: LiqUI_TableSortState)?
 
----@class LiqUI_TableOptions
----@field name string
+---@class LiqUI_TableOptions : LiqUI_NewElementOptions
 ---@field storage LiqUI_TableDB?
 ---@field columns LiqUI_TableOptionsColumn[]?
 ---@field header LiqUI_TableOptionsHeader?

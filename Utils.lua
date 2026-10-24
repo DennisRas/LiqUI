@@ -41,7 +41,7 @@ end
 ---@generic K, V
 ---@param tbl table<K, V>
 ---@param callback fun(value: V, index: K): boolean
----@return V|nil, K
+---@return V|nil, K|nil
 function Utils.TableFind(tbl, callback)
   assert(type(tbl) == "table", "Must be a table!")
   for i, v in pairs(tbl) do
@@ -52,11 +52,11 @@ function Utils.TableFind(tbl, callback)
   return nil, nil
 end
 
----@generic T
----@param tbl table<any, T>
+---@generic K, V
+---@param tbl table<K, V>
 ---@param key string
 ---@param val any
----@return T|nil, any
+---@return V|nil, K|nil
 function Utils.TableGet(tbl, key, val)
   return Utils.TableFind(tbl, function(elm, _)
     if elm[key] and elm[key] == val then
@@ -92,9 +92,10 @@ function Utils.TableCount(tbl)
   return n
 end
 
----@param base table
+---@generic T
+---@param base T
 ---@param overlay table
----@return table
+---@return T
 function Utils.MergeDeep(base, overlay)
   local result = Utils.TableCopy(base)
   for k, v in pairs(overlay) do
@@ -108,9 +109,9 @@ function Utils.MergeDeep(base, overlay)
 end
 
 ---@generic T
----@param tbl table<any, T>
+---@param tbl T
 ---@param cache table?
----@return table<any, any>
+---@return T
 function Utils.TableCopy(tbl, cache)
   assert(type(tbl) == "table", "Must be a table!")
   local t = {}
@@ -152,8 +153,9 @@ function Utils.TableForEach(tbl, callback)
   return tbl
 end
 
----@param tbl table
----@return fun(): any
+---@generic K, V
+---@param tbl table<K, V>
+---@return fun(): K
 function Utils.SortedPairs(tbl)
   local keys = {}
   for k in pairs(tbl) do

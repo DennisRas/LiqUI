@@ -75,9 +75,8 @@
 ---@field textColor ColorTable?
 ---@field backgroundColor ColorTable?
 
----@class LiqUI_WindowOptions
+---@class LiqUI_WindowOptions : LiqUI_NewElementOptions
 ---@field parent Frame?
----@field name string
 ---@field storage LiqUI_WindowDB?
 ---@field title string?
 ---@field icon string?
