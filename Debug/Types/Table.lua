@@ -34,7 +34,7 @@
 ---@field width number
 ---@field align "LEFT"|"CENTER"|"RIGHT"|nil
 ---@field hideable boolean|nil
----@field render? fun(cell: LiqUI_TableDataCellExtended|nil, row: LiqUI_TableDataRowExtended, rowIndex: integer): LiqUI_TableDataValue|nil
+---@field render? fun(cell: LiqUI_TableDataCellValue|nil, row: LiqUI_TableDataRowExtended, rowIndex: integer): LiqUI_TableDataValue|nil
 ---@field sorting LiqUI_TableOptionsColumnSorting|nil
 ---@field onEnter LiqUI_TableHeaderCellHandler|nil
 ---@field onLeave LiqUI_TableHeaderCellHandler|nil
