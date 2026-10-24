@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.3.3 - TBD
+## v1.3.3 - 2026-10-24
 
 - Updated performance.
 
