@@ -1,6 +1,6 @@
 assert(LibStub, "LiqUI requires LibStub")
 
-local MAJOR, MINOR = "LiqUI-1.0", 5
+local MAJOR, MINOR = "LiqUI-1.0", 6
 ---@class LiqUI
 local LiqUI = LibStub:NewLibrary(MAJOR, MINOR)
 if not LiqUI then
