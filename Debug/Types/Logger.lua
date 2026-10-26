@@ -10,11 +10,13 @@
 ---@field name string
 ---@field title string?
 ---@field storage LiqUI_LoggerDB
+---@field maxLines number?
 
 ---@class LiqUI_LoggerHandle
 ---@field name string
 ---@field title string
 ---@field storage LiqUI_LoggerDB
+---@field maxLines number?
 ---@field Log fun(self: LiqUI_LoggerHandle, prefixOrMessage: string, message: string?)
 ---@field Warn fun(self: LiqUI_LoggerHandle, message: string)
 ---@field Error fun(self: LiqUI_LoggerHandle, message: string)
