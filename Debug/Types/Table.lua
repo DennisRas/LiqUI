@@ -19,6 +19,14 @@
 ---@field data LiqUI_TableDataCellValue[]
 ---@field height number|nil
 ---@field backgroundColor ColorRGBAData|nil
+---@field indent number|nil
+---@field skipStripe boolean|nil
+---@field span boolean|nil
+---@field padding number|nil
+---@field paddingTop number|nil
+---@field paddingBottom number|nil
+---@field gapBefore number|nil
+---@field gapAfter number|nil
 ---@field onEnter LiqUI_TableCellHandler|nil
 ---@field onLeave LiqUI_TableCellHandler|nil
 ---@field onClick LiqUI_TableCellClickHandler|nil
@@ -48,11 +56,13 @@
 ---@field sticky boolean?
 ---@field height number?
 ---@field fontObject string?
+---@field backgroundAlpha number?
 
 ---@class LiqUI_TableOptionsRowStyle
 ---@field height number?
 ---@field highlight boolean?
 ---@field striped boolean?
+---@field stripeColor ColorRGBAData?
 
 ---@class LiqUI_TableOptionsCellStyle
 ---@field padding number?
