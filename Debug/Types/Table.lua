@@ -141,6 +141,10 @@
 ---@field SetSortState fun(self: LiqUI_TableInstance, columnId: string|nil, direction: "asc"|"desc"|nil)
 ---@field SetRowHeight fun(self: LiqUI_TableInstance, height: number)
 ---@field GetSize fun(self: LiqUI_TableInstance): number, number
+---@field GetContentSize fun(self: LiqUI_TableInstance): number, number
+---@field GetColumnWidth fun(self: LiqUI_TableInstance, columnId: string): number?
+---@field SetColumnWidth fun(self: LiqUI_TableInstance, columnId: string, width: number, transient: boolean?)
+---@field ResetColumnWidth fun(self: LiqUI_TableInstance, columnId: string)
 ---@field resizeState LiqUI_TableResizeState?
 
 ---@class LiqUI_TableResizeState

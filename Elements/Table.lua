@@ -341,6 +341,9 @@ local function createTable(options)
   function frame:getResolvedColumnWidth(column)
     local defaultColumnWidth = LiqUI.Constants.layout.sizes.column
     local width = column.width or defaultColumnWidth
+    if not (frame.options.header and frame.options.header.resizable) and column.resolvedWidth == nil then
+      return width
+    end
     if column.id and frame.db and frame.db.columnWidths and type(frame.db.columnWidths[column.id]) == "number" then
       width = frame.db.columnWidths[column.id]
     end
@@ -424,6 +427,9 @@ local function createTable(options)
       return
     end
     local scrollArea = frame.scrollArea
+    if not scrollArea or not scrollArea.horizontalScrollBox then
+      return
+    end
     local offset = getScrollBoxOffset(scrollArea and scrollArea.horizontalScrollBox)
     local headerWidth = frame.headerRowFrame:GetWidth() or 0
     frame.headerRowFrame:ClearAllPoints()
@@ -607,7 +613,16 @@ local function createTable(options)
         frame.headerRowFrame = createdHeader
       end
 
-      if headerSticky then
+      if headerSticky and not scrollArea.horizontalScrollBox then
+        headerRowFrame:SetParent(frame)
+        headerRowFrame:ClearAllPoints()
+        headerRowFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+        headerRowFrame:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
+        if scrollArea.verticalScrollBar then
+          headerRowFrame:SetFrameLevel(scrollArea.verticalScrollBar:GetFrameLevel() + 2)
+        end
+        scrollArea:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -headerHeight)
+      elseif headerSticky then
         if not frame.headerClipFrame then
           frame.headerClipFrame = CreateFrame("Frame", "$parentHeaderClip", frame)
           if frame.headerClipFrame.SetClipsChildren then
@@ -631,7 +646,11 @@ local function createTable(options)
           frame.headerClipFrame:Hide()
         end
         headerRowFrame:SetParent(scrollArea.content)
+        headerRowFrame:ClearAllPoints()
         headerRowFrame:SetPoint("TOPLEFT", scrollArea.content, "TOPLEFT", 0, 0)
+        if not scrollArea.horizontalScrollBox then
+          headerRowFrame:SetPoint("TOPRIGHT", scrollArea.content, "TOPRIGHT", 0, 0)
+        end
         headerRowFrame:SetFrameLevel(scrollArea.content:GetFrameLevel() + 1)
       end
 
@@ -640,7 +659,9 @@ local function createTable(options)
         headerBackgroundAlpha = headerConfig.backgroundAlpha
       end
       SetBackgroundColor(headerRowFrame, 0, 0, 0, headerBackgroundAlpha)
-      headerRowFrame:SetWidth(layoutWidth)
+      if scrollArea.horizontalScrollBox then
+        headerRowFrame:SetWidth(layoutWidth)
+      end
       headerRowFrame:SetHeight(headerHeight)
       headerRowFrame:Show()
       frame:syncStickyHeaderHorizontalOffset()
@@ -808,7 +829,11 @@ local function createTable(options)
       rowFrame:ClearAllPoints()
       rowFrame:SetPoint("TOPLEFT", scrollArea.content, "TOPLEFT", 0, -rowOffsetY)
       rowFrame:SetFrameLevel(scrollArea.content:GetFrameLevel() + 1)
-      rowFrame:SetWidth(layoutWidth)
+      if scrollArea.horizontalScrollBox then
+        rowFrame:SetWidth(layoutWidth)
+      else
+        rowFrame:SetPoint("TOPRIGHT", scrollArea.content, "TOPRIGHT", 0, -rowOffsetY)
+      end
       rowFrame:SetHeight(rowHeight)
       rowFrame:Show()
       rowOffsetY = rowOffsetY + rowHeight + gapAfter
@@ -934,8 +959,8 @@ local function createTable(options)
 
     frame.layoutSize.contentWidth = layoutWidth
     frame.layoutSize.contentHeight = shownHeight
-    frame.layoutSize.shownWidth = math.min(layoutWidth, frame:GetWidth())
-    frame.layoutSize.shownHeight = math.min(shownHeight, frame:GetHeight())
+    frame.layoutSize.shownWidth = layoutWidth
+    frame.layoutSize.shownHeight = shownHeight
 
     scrollArea:UpdateLayout(layoutWidth, scrollHeight)
     frame:syncStickyHeaderHorizontalOffset()
